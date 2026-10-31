@@ -15,12 +15,6 @@ export const NetCoopAPI = {
     }
   },
 
-  async getScenarios() {
-    const res = await fetch(`${API_BASE}/scenarios`);
-    if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`);
-    return await res.json();
-  },
-
   async validateTelemetry(payload) {
     const res = await fetch(`${API_BASE}/telemetry/validate`, {
       method: 'POST',
@@ -30,15 +24,12 @@ export const NetCoopAPI = {
     return await res.json();
   },
 
-  async runDiagnostics({ scenarioId, telemetry, incidentName }) {
-    const res = await fetch(`${API_BASE}/diagnostics`, {
+  async runDiagnostics({ telemetry, incidentName }) {
+    const query = incidentName ? `?incident_name=${encodeURIComponent(incidentName)}` : '';
+    const res = await fetch(`${API_BASE}/diagnostics${query}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        scenario_id: scenarioId,
-        telemetry: telemetry,
-        incident_name: incidentName
-      })
+      body: JSON.stringify(telemetry)
     });
     return await res.json();
   },

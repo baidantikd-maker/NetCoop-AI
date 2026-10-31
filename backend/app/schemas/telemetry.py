@@ -2,10 +2,10 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 class NormalizedTelemetry(BaseModel):
-    timestamp: str
+    timestamp: Optional[str] = None
     device_id: str
-    device_type: str = "unknown"
-    status: str = "unknown"
+    device_type: Optional[str] = None
+    status: Optional[str] = None
     latency_ms: Optional[float] = None
     jitter_ms: Optional[float] = None
     packet_loss_pct: Optional[float] = None
@@ -17,7 +17,7 @@ class NormalizedTelemetry(BaseModel):
     queue_drops: Optional[int] = None
     interface_errors: Optional[int] = None
     wireless_signal_dbm: Optional[float] = None
-    topology: Dict[str, Any] = Field(default_factory=dict)
+    topology: Optional[Dict[str, Any]] = None
     raw_payload: Optional[Dict[str, Any]] = None
 
 class ValidationIssue(BaseModel):

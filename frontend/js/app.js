@@ -4,10 +4,7 @@ import { NetCoopAPI } from './api.js';
 // Application State
 const state = {
   currentTab: 'overview',
-  scenarios: [],
-  selectedScenario: null,
   currentRun: null,
-  customTelemetry: null,
   history: [],
   isExecuting: false
 };
@@ -24,11 +21,9 @@ const elements = {
   kpiDiagnosed: document.getElementById('kpiDiagnosed'),
   kpiActiveAgents: document.getElementById('kpiActiveAgents'),
   kpiConfidenceAvg: document.getElementById('kpiConfidenceAvg'),
-  overviewScenariosGrid: document.getElementById('overviewScenariosGrid'),
   recentRunsTable: document.getElementById('recentRunsTable'),
 
   // New Diagnosis
-  scenarioSelectorGrid: document.getElementById('scenarioSelectorGrid'),
   telemetryJsonInput: document.getElementById('telemetryJsonInput'),
   btnValidateInput: document.getElementById('btnValidateInput'),
   btnStartDiagnosis: document.getElementById('btnStartDiagnosis'),
@@ -71,7 +66,6 @@ async function initApp() {
   setupNavigation();
   setupEventListeners();
   await checkHealth();
-  await loadScenarios();
   await refreshHistory();
 
   // Polling heartbeat every 15s
@@ -111,81 +105,6 @@ async function checkHealth() {
     elements.healthDot.style.boxShadow = '0 0 8px var(--accent-rose)';
   }
 }
-
-// Load Scenarios
-async function loadScenarios() {
-  try {
-    const list = await NetCoopAPI.getScenarios();
-    state.scenarios = list;
-    renderOverviewScenarios(list);
-    renderNewDiagnosisScenarios(list);
-    renderBenchmarkScenarios(list);
-  } catch (e) {
-    console.error('Failed to load scenarios', e);
-  }
-}
-
-// Render Overview Scenarios Grid
-function renderOverviewScenarios(scenarios) {
-  if (!elements.overviewScenariosGrid) return;
-  elements.overviewScenariosGrid.innerHTML = scenarios.map(s => `
-    <div class="scenario-card" onclick="window.selectAndLaunchScenario('${s.id}')">
-      <div class="scenario-category" style="color: ${getCategoryColor(s.category)}">${s.category}</div>
-      <div class="scenario-title">${s.title}</div>
-      <div class="scenario-desc">${s.description}</div>
-      <button class="btn btn-secondary" style="margin-top:auto; width: 100%; justify-content: center;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        Quick Diagnose
-      </button>
-    </div>
-  `).join('');
-}
-
-// Render New Diagnosis Scenarios Grid
-function renderNewDiagnosisScenarios(scenarios) {
-  if (!elements.scenarioSelectorGrid) return;
-  elements.scenarioSelectorGrid.innerHTML = scenarios.map(s => `
-    <div class="scenario-card ${state.selectedScenario === s.id ? 'selected' : ''}" 
-         id="card-scenario-${s.id}" 
-         onclick="window.selectScenario('${s.id}')">
-      <div class="scenario-category" style="color: ${getCategoryColor(s.category)}">${s.category}</div>
-      <div class="scenario-title">${s.title}</div>
-      <div class="scenario-desc">${s.description}</div>
-    </div>
-  `).join('');
-}
-
-function getCategoryColor(category) {
-  switch (category) {
-    case 'healthy': return 'var(--accent-emerald)';
-    case 'performance': return 'var(--accent-cyan)';
-    case 'wireless': return 'var(--accent-amber)';
-    case 'infrastructure': return 'var(--accent-rose)';
-    case 'service': return 'var(--accent-purple)';
-    case 'interoperability': return '#f43f5e';
-    default: return 'var(--text-secondary)';
-  }
-}
-
-// Select Scenario in New Diagnosis
-window.selectScenario = function(scenarioId) {
-  state.selectedScenario = scenarioId;
-  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
-  const card = document.getElementById(`card-scenario-${scenarioId}`);
-  if (card) card.classList.add('selected');
-
-  const s = state.scenarios.find(item => item.id === scenarioId);
-  if (s && s.sample_payload) {
-    elements.telemetryJsonInput.value = JSON.stringify(s.sample_payload, null, 2);
-    elements.incidentNameInput.value = `INC-${s.id.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    validateCurrentInput(s.sample_payload);
-  }
-};
-
-window.selectAndLaunchScenario = function(scenarioId) {
-  window.selectScenario(scenarioId);
-  switchTab('new-diagnosis');
-};
 
 // Validate Input
 async function validateCurrentInput(dataToValidate = null) {
@@ -261,8 +180,6 @@ function setupEventListeners() {
       const reader = new FileReader();
       reader.onload = (evt) => {
         elements.telemetryJsonInput.value = evt.target.result;
-        state.selectedScenario = null;
-        document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
         validateCurrentInput();
       };
       reader.readAsText(file);
@@ -339,7 +256,6 @@ async function startDiagnosticRun() {
   // Call Backend API
   try {
     const result = await NetCoopAPI.runDiagnostics({
-      scenarioId: state.selectedScenario,
       telemetry: telemetryPayload,
       incidentName: incidentName
     });
@@ -358,8 +274,23 @@ async function startDiagnosticRun() {
       return;
     }
 
-    // Animate Pipeline Step-by-Step
-    await animateExecution(result);
+    renderAgentCards(result.agent_statuses || {});
+    const reportStatus = result.report?.status || result.status;
+    if (result.status === 'partial') {
+      elements.runStatusBadge.textContent = 'Partial Run';
+      elements.runStatusBadge.className = 'agent-badge badge-warning';
+    } else if (reportStatus === 'inconclusive') {
+      elements.runStatusBadge.textContent = 'Inconclusive';
+      elements.runStatusBadge.className = 'agent-badge badge-warning';
+    } else if (reportStatus === 'insufficient_evidence') {
+      elements.runStatusBadge.textContent = 'Insufficient Evidence';
+      elements.runStatusBadge.className = 'agent-badge badge-warning';
+    } else {
+      elements.runStatusBadge.textContent = 'Completed';
+      elements.runStatusBadge.className = 'agent-badge badge-completed';
+    }
+    renderMessageTimeline(result.messages || []);
+    renderReportView(result);
     await refreshHistory();
 
   } catch (err) {
@@ -367,44 +298,6 @@ async function startDiagnosticRun() {
     elements.runStatusBadge.textContent = 'Execution Failed';
     elements.runStatusBadge.className = 'agent-badge badge-failed';
   }
-}
-
-// Animate Agent Execution and Timeline
-async function animateExecution(runResult) {
-  const messages = runResult.messages || [];
-
-  // Step 1: Specialist Agents Complete
-  await new Promise(r => setTimeout(r, 400));
-  renderAgentCards({
-    performance_agent: { status: 'completed', responsibility: 'Analyzes latency, jitter, packet loss, bandwidth' },
-    infrastructure_agent: { status: 'completed', responsibility: 'Examines device health, CPU/RAM, interface errors, drops' },
-    connectivity_agent: { status: 'completed', responsibility: 'Analyzes network topology and blast radius' },
-    fault_correlation_agent: { status: 'running', responsibility: 'Correlates multi-agent findings and ranks hypotheses' },
-    reporting_agent: { status: 'pending', responsibility: 'Generates unified JSON report and practical remedies' }
-  });
-
-  // Step 2: Correlation Agent
-  await new Promise(r => setTimeout(r, 500));
-  renderAgentCards({
-    performance_agent: { status: 'completed', responsibility: 'Analyzes latency, jitter, packet loss, bandwidth' },
-    infrastructure_agent: { status: 'completed', responsibility: 'Examines device health, CPU/RAM, interface errors, drops' },
-    connectivity_agent: { status: 'completed', responsibility: 'Analyzes network topology and blast radius' },
-    fault_correlation_agent: { status: 'completed', responsibility: 'Correlates multi-agent findings and ranks hypotheses' },
-    reporting_agent: { status: 'running', responsibility: 'Generates unified JSON report and practical remedies' }
-  });
-
-  // Step 3: Reporting Agent
-  await new Promise(r => setTimeout(r, 400));
-  renderAgentCards(runResult.agent_statuses);
-
-  elements.runStatusBadge.textContent = 'Completed';
-  elements.runStatusBadge.className = 'agent-badge badge-completed';
-
-  // Render Full Message Timeline
-  renderMessageTimeline(messages);
-
-  // Render Diagnostic Report
-  renderReportView(runResult);
 }
 
 // Render Agent Status Cards
@@ -488,7 +381,7 @@ function renderReportView(runResult) {
   elements.reportIncidentId.textContent = r.incident_id;
   elements.reportRootCause.textContent = r.suspected_root_cause;
   elements.reportConfidenceGauge.textContent = `${Math.round(r.confidence * 100)}%`;
-  elements.reportConfidenceCat.textContent = `${r.confidence_category.toUpperCase()} CONFIDENCE`;
+  elements.reportConfidenceCat.textContent = `${r.confidence_category.toUpperCase()} RULE SCORE`;
   elements.reportConfidenceCat.className = `badge badge-${r.confidence_category === 'high' ? 'success' : (r.confidence_category === 'medium' ? 'warning' : 'critical')}`;
 
   // Affected Devices
@@ -552,7 +445,7 @@ async function refreshHistory() {
   if (elements.recentRunsTable) {
     if (runs.length === 0) {
       elements.recentRunsTable.innerHTML = `
-        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No diagnostic runs yet. Select a scenario above to begin.</td></tr>
+        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No diagnostic runs yet. Submit telemetry to begin.</td></tr>
       `;
     } else {
       elements.recentRunsTable.innerHTML = runs.slice(0, 8).map(r => `
@@ -581,32 +474,6 @@ window.loadHistoricalRun = async function(incidentId) {
     renderReportView(run);
     switchTab('report');
   }
-};
-
-// Render Benchmark Scenarios
-function renderBenchmarkScenarios(scenarios) {
-  const container = document.getElementById('benchmarkScenariosContainer');
-  if (!container) return;
-
-  container.innerHTML = scenarios.map(s => `
-    <div class="glass-card" style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom: 0.3rem;">
-          <strong style="color: #ffffff; font-size: 0.95rem;">${s.title}</strong>
-          <span class="badge badge-info">${s.category}</span>
-        </div>
-        <p style="font-size: 0.82rem; color: var(--text-secondary); max-width: 780px;">${s.description}</p>
-      </div>
-      <button class="btn btn-emerald" onclick="window.runBenchmarkTest('${s.id}')">
-        Run Scenario
-      </button>
-    </div>
-  `).join('');
-}
-
-window.runBenchmarkTest = async function(scenarioId) {
-  window.selectScenario(scenarioId);
-  await startDiagnosticRun();
 };
 
 // Start

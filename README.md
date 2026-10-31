@@ -1,6 +1,6 @@
 # NetCoop AI — Multi-Agent Network Fault Diagnosis System
 
-NetCoop AI is a multi-agent network fault diagnosis and interoperability web system. It coordinates specialized autonomous agents (Telemetry & Performance, Infrastructure Health, Connectivity Analysis, Fault Correlation, and Recommendation & Reporting) communicating over a versioned, structured JSON protocol envelope (v1.0) to synthesize explainable, evidence-backed diagnostic reports from campus telemetry.
+NetCoop AI is a network fault diagnosis prototype. Five locally implemented rule agents analyze user-submitted telemetry, exchange versioned JSON findings through an in-process orchestrator, and produce an evidence-backed report. It does not connect to a language model or collect live campus telemetry.
 
 ---
 
@@ -12,7 +12,7 @@ The web architecture follows a modular, 4-tier client-server structure:
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        Layer 1: Presentation UI                        │
 │   Web NOC Dashboard (Overview, New Diagnosis, Live Agent Pipeline,     │
-│       Diagnostic Report, Reproducible Benchmarks, Architecture)        │
+│       Diagnostic Report, User Telemetry, Architecture)                 │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ HTTP / REST & JSON
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -26,7 +26,7 @@ The web architecture follows a modular, 4-tier client-server structure:
 │  - Telemetry & Performance Agent (latency, jitter, packet loss, util)  │
 │  - Infrastructure Health Agent (device state, CPU/RAM, drops, errors)  │
 │  - Connectivity Analysis Agent (topology adjacency & blast radius)     │
-│  All messages exchanged in versioned JSON envelopes (Schema v1.0)      │
+│  In-process routing of versioned JSON envelopes (Schema v1.0)         │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ Structured Findings
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -45,9 +45,9 @@ The web architecture follows a modular, 4-tier client-server structure:
 - Modern web browser (Chrome, Edge, Firefox)
 
 ### 2. Installation
-Install the required backend dependencies:
+Install the required backend dependencies from the project root:
 ```bash
-pip install fastapi uvicorn pydantic
+pip install -r requirements.txt
 ```
 
 ### 3. Run the Web Application
@@ -73,8 +73,8 @@ You feed the system a **telemetry JSON snapshot** — a single reading from a ne
 |---|---|---|---|
 | `timestamp` | ISO 8601 string | When reading was taken | — |
 | `device_id` | string | Unique device name | Required |
-| `device_type` | string | `switch` / `access_point` / `server` | Required |
-| `status` | string | `up` / `degraded` / `unreachable` | `degraded` or `unreachable` = alert |
+| `device_type` | string | `switch` / `access_point` / `server` | Optional context |
+| `status` | string | `up` / `degraded` / `unreachable` | Degraded/unreachable contributes evidence |
 | `latency_ms` | milliseconds | Network round-trip delay | > 100ms = problem |
 | `jitter_ms` | milliseconds | Variation in delay (affects VoIP/video) | > 30ms = elevated |
 | `packet_loss_pct` | % | Data packets being dropped | > 1% = problem |
@@ -88,191 +88,92 @@ You feed the system a **telemetry JSON snapshot** — a single reading from a ne
 | `wireless_signal_dbm` | dBm | Wi-Fi signal strength (APs only) | < -70 = weak; < -80 = severe |
 | `topology.connected_to` | array | Upstream/downstream devices | Used for blast radius |
 
-### Minimal Valid Input Example
-```json
-{
-  "timestamp": "2026-10-31T10:00:00Z",
-  "device_id": "MY_SWITCH_01",
-  "device_type": "switch",
-  "status": "up",
-  "latency_ms": 14,
-  "packet_loss_pct": 0.0,
-  "link_utilization_pct": 45,
-  "queue_drops": 0,
-  "topology": { "connected_to": ["UPSTREAM_ROUTER"] }
-}
-```
+## User-Provided Telemetry
 
----
+Submit a JSON object containing a `device_id` and any telemetry fields you have. The service validates and normalizes the supplied values, then runs deterministic rule-based agents against those values. It does not load bundled sample telemetry or generate missing measurements. `timestamp`, `device_type`, `status`, topology, and metric fields may be omitted; omitted values are not synthesized as measurements.
 
-## 🧪 Mock Telemetry Test Scenarios
+Both endpoints accept the telemetry JSON object directly. `device_id` is required; other fields are optional. The diagnostics endpoint can take an optional `incident_name` query parameter. Field aliases and nested metric containers are normalized, and the exact submitted object is retained in `raw_payload` for auditability. Supported units include ms/s/us for time, Mbps/Gbps/Kbps/bps for rates, percent signs or words for percentages, and dBm for wireless signal. Unsupported units and values outside accepted metric ranges are rejected.
 
-NetCoop AI ships with 7 pre-built test scenarios in `data/`. Use these to test the full agent pipeline without needing real network hardware.
+The production application does not load test fixtures. Synthetic examples live only in `backend/tests/fixtures/` and are used by the automated test suite and demo walkthrough.
 
-### Scenario Files at a Glance
+## Reproducible Tests and Demo Inputs
 
-| File | Scenario | What It Tests |
-|---|---|---|
-| `normal.json` | ✅ Healthy network | Baseline — should produce **no faults** |
-| `link_congestion.json` | 🔴 Congested link | 94% utilization, high latency, queue drops → **congestion alert** |
-| `weak_wifi.json` | 📶 Bad Wi-Fi | -88 dBm signal, 14.8% packet loss → **weak wireless signal** |
-| `interface_fault.json` | ⚠️ Physical fault | 348 interface errors, `status: degraded` → **hardware/port fault** |
-| `dns_dhcp_failure.json` | 💥 Server crash | 98% CPU, 82% packet loss, `unreachable` → **service outage** |
-| `campus_switch_critical.json`| 🔥 Critical switch overload | 100% link, 99.9% CPU, 5839 drops, nested `metrics` block → **critical congestion & queue drops** |
-| `incompatible_schema.json` | ❌ Bad data | Missing fields, wrong types, unknown version → **validation failure** |
+Run the test suite from the repository root:
 
-### Sending a Scenario via PowerShell
-```powershell
-$body = Get-Content "data\link_congestion.json" -Raw
-Invoke-RestMethod -Uri "http://localhost:8000/api/diagnostics" `
-  -Method POST -ContentType "application/json" -Body $body
-```
-
-### Sending via curl
 ```bash
-curl -X POST http://localhost:8000/api/diagnostics \
+python -m unittest discover -s backend/tests -v
+```
+
+The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not imported by the API or loaded into the dashboard. You can upload one explicitly in the dashboard for a repeatable demonstration, or send it to the API:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/diagnostics?incident_name=DEMO-CONGESTION" \
   -H "Content-Type: application/json" \
-  -d @data/link_congestion.json
+  -d @backend/tests/fixtures/link_congestion.json
 ```
 
-### Sending via Python / Jupyter Notebook
-```python
-import json
-import urllib.request
-from datetime import datetime, timezone
-
-# Timezone-aware UTC timestamp (avoids Python 3.12+ datetime.utcnow() deprecation)
-timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-payload = {
-    "timestamp": timestamp,
-    "device_id": "SW_CAMPUS_2",
-    "metrics": {
-        "cpu_utilization_pct": 99.9,
-        "link_utilization_pct": 100.0,
-        "packet_loss_pct": 26.98,
-        "latency_ms": 563.85,
-        "queue_drops": 5839,
-        "interface_errors": 329
-    },
-    "status": "Critical"
-}
-
-req = urllib.request.Request(
-    "http://localhost:8000/api/diagnostics",
-    data=json.dumps(payload).encode("utf-8"),
-    headers={"Content-Type": "application/json"}
-)
-with urllib.request.urlopen(req) as resp:
-    result = json.loads(resp.read().decode("utf-8"))
-    print("Incident ID:", result["incident_id"])
-    print("Root Cause:", result["report"]["suspected_root_cause"])
-    print("Confidence:", f"{result['report']['confidence'] * 100:.1f}%")
-```
-
-### Running the Automated Unit & Scenario Tests
-```bash
-python -m unittest backend/tests/test_scenarios.py
-```
-
-### Random Test Payload (Mixed Health — Resource Exhaustion)
-Use this to test a tricky scenario: the switch reports `status: up` but is silently degrading due to CPU and memory exhaustion.
-
-```json
-{
-  "timestamp": "2026-10-31T09:41:33Z",
-  "device_id": "LIBRARY_DIST_SW_02",
-  "device_type": "switch",
-  "status": "up",
-  "latency_ms": 67,
-  "jitter_ms": 31,
-  "packet_loss_pct": 5.7,
-  "throughput_mbps": 88,
-  "bandwidth_mbps": 500,
-  "link_utilization_pct": 71,
-  "cpu_utilization_pct": 82,
-  "memory_utilization_pct": 89,
-  "queue_drops": 43,
-  "interface_errors": 12,
-  "wireless_signal_dbm": null,
-  "topology": {
-    "connected_to": ["CAMPUS_CORE_RTR_01", "LIBRARY_AP_FLOOR_2", "LIBRARY_AP_FLOOR_3"]
-  }
-}
-```
-**Expected diagnosis:** CPU → Memory → Queue Drops → Packet Loss chain identified as resource exhaustion.
-
----
-
+See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for a timed 3–5 minute presentation walkthrough.
 ## 🔍 Understanding the Diagnostic Report
 
 ### What is the Confidence %?
 
-The confidence % answers one question: **"How sure is the AI that THIS is the real problem?"**
+The confidence score is a fixed rule score for the leading hypothesis. It is not an LLM probability or a statistically calibrated likelihood.
 
 | Confidence | Label | Meaning |
 |---|---|---|
-| ≥ 80% | 🟢 High | Strong evidence — multiple signals all agree |
-| 50–79% | 🟡 Medium | Some evidence, not fully conclusive |
-| < 50% | 🔴 Low | Weak signals, uncertain diagnosis |
+| ≥ 80% | 🟢 High | High heuristic score under the fixed rules |
+| 50–79% | 🟡 Medium | Partial rule support |
+| < 50% | 🔴 Low | Weak rule support or an inconclusive result |
 
-**How it is calculated:** The system scores 4 competing fault hypotheses simultaneously by adding points for each matching metric. The highest-scoring hypothesis wins and its score becomes the confidence %.
+**How it is calculated:** The system scores five competing fault hypotheses with fixed weights for matching metrics. The leading score is displayed as a heuristic confidence score, not a calibrated probability. A diagnosis requires relevant evidence from at least two specialist agents. Close scores are marked inconclusive. A normal result requires at least four healthy supplied measurements from at least two agents; otherwise the report says insufficient evidence.
 
 | Hypothesis | Key Triggers | Max Score |
 |---|---|---|
-| Link Congestion | utilization ≥ 85% (+0.45), queue drops > 50 (+0.40), latency > 100ms (+0.15) | 0.94 |
-| Weak Wi-Fi | signal ≤ -80dBm (+0.55), packet loss > 5% (+0.25), jitter > 30ms (+0.15) | 0.92 |
+| Link Congestion | utilization ≥ 85% (+0.45), queue drops > 50 (+0.40), latency > 100ms (+0.15), CPU ≥ 80% (+0.10) | 0.94 |
+| Weak Wi-Fi | signal ≤ -80dBm (+0.55) or ≤ -70dBm (+0.30), packet loss > 5% (+0.25), jitter > 30ms (+0.15) | 0.92 |
 | Interface Fault | errors > 20 (+0.55), packet loss > 2% (+0.25), status=degraded (+0.15) | 0.90 |
 | Service Failure | status=unreachable (+0.50), latency > 1000ms (+0.25), loss > 50% (+0.20) | 0.95 |
+| Resource Exhaustion | CPU > 80% (+0.30), memory > 85% (+0.40), queue drops > 20 (+0.20), loss > 2% (+0.10) | 0.90 |
 
-> **Important:** A high confidence % does not guarantee correctness. It means the evidence strongly points in that direction. Always verify findings on the physical device.
+> **Important:** This is a weighted rule score, not a probability that the diagnosis is correct. Verify findings on the physical device.
 
 ---
 
 ## ⚠️ Limitations & Uncertainty Disclosure (FR-06 / FR-07)
 
-Every diagnostic report includes a **Limitations & Uncertainty Disclosure** section. This is a mandatory transparency requirement (FR-06 / FR-07) built into the system design.
+Every diagnostic report includes a limitations section describing uncertainty and missing evidence.
 
 ### What appears in this section
 
-The system will always display:
-```
-⚠️  Root cause represents calibrated probabilistic inference; verify on physical switch
-⚠️  Cross-validated across 3 independent specialist agents
-```
-
-And if confidence is below 80%:
-```
-⚠️  Additional telemetry points recommended to achieve high certainty
-```
+Reports state that the result is rule-based, identify missing or insufficient evidence, and record specialist failures or rejected messages when applicable.
 
 ### What each line means
 
 | Disclaimer | Plain English |
 |---|---|
-| *"Probabilistic inference"* | "This is our best mathematical guess — not a confirmed fact" |
+| *"Rule-based inference"* | "This is a fixed-rule conclusion from the supplied measurements, not a confirmed fact" |
 | *"Verify on physical switch"* | "Someone should physically check the device to confirm" |
-| *"Cross-validated across 3 agents"* | "3 separate AI specialists independently agreed on this finding" |
-| *"Additional telemetry recommended"* | "We need more data to be fully certain" |
+| *"Fixed thresholds and weighted scoring"* | "The diagnosis comes from rules written in this project, not an LLM" |
+| *"Insufficient evidence"* | "The supplied input does not support a reliable diagnosis" |
 
-### The 3 Agents That Cross-Validate
+### The Specialist Rule Agents
 
-| Agent | What It Independently Checks |
+| Agent | What It Checks |
 |---|---|
 | **Performance Agent** | Latency, jitter, packet loss, throughput |
 | **Infrastructure Agent** | CPU, memory, queue drops, interface errors, device status |
 | **Connectivity Agent** | Topology, upstream links, blast radius (affected devices) |
 
-The **Fault Correlation Agent** then weighs all 3 agents' findings and picks the most evidence-backed root cause.
+The **Fault Correlation Agent** validates specialist finding envelopes, applies fixed scoring rules, requires evidence from multiple agents, and marks close competing hypotheses inconclusive. No LLM is currently connected; all agents are locally implemented Python rules and templates.
 
 ### Why This Section Exists
 
 NetCoop AI is designed to **assist** network engineers, not replace their judgment. The system is always transparent about:
 - What it measured vs. what it inferred
-- How many agents agreed on the conclusion
+- Which rule agents supplied findings
 - What data it did not have access to
 
-> **Think of it like a doctor:** "Based on your symptoms, I think it's X — but let's run a blood test to confirm."
+The confidence score is heuristic only. Validate any recommendation against the actual network before taking action.
 
 ---
 
@@ -311,7 +212,6 @@ Every inter-agent message conforms to the following versioned contract:
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `GET` | `/api/health` | Engine health check and active agent list |
-| `GET` | `/api/scenarios` | Returns available test scenario metadata and payloads |
 | `POST` | `/api/telemetry/validate` | Validates, normalizes, and reports schema errors/warnings |
 | `POST` | `/api/diagnostics` | Dispatches multi-agent run (returns complete run context & report) |
 | `GET` | `/api/diagnostics/{incident_id}` | Retrieves run status, agent statuses, and report |

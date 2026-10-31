@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-10-31T10:00:00Z",
+  "device_id": "TEST_SWITCH_INTERFACE_FAULT",
+  "device_type": "switch",
+  "status": "degraded",
+  "latency_ms": 30,
+  "packet_loss_pct": 8.4,
+  "link_utilization_pct": 20,
+  "cpu_utilization_pct": 30,
+  "memory_utilization_pct": 50,
+  "queue_drops": 0,
+  "interface_errors": 348
+}

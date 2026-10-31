@@ -3,7 +3,8 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 
 class AgentMessageEnvelope(BaseModel):
-    schema_version: str = Field(default="1.0", description="Version of the message protocol")
+    model_config = {"extra": "forbid"}
+    schema_version: Literal["1.0"] = Field(default="1.0", description="Version of the message protocol")
     message_id: str = Field(..., description="Unique message identifier, e.g. MSG-0001")
     incident_id: str = Field(..., description="Incident or run identifier, e.g. INC-8832")
     timestamp: str = Field(
@@ -22,6 +23,8 @@ class AgentMessageEnvelope(BaseModel):
     warnings: List[str] = Field(default_factory=list, description="Validation or semantic warnings")
 
 class FindingPayload(BaseModel):
+    model_config = {"extra": "forbid"}
+
     finding_id: str
     category: Literal["performance", "infrastructure", "connectivity", "correlation", "reporting"]
     metric: str
@@ -31,3 +34,4 @@ class FindingPayload(BaseModel):
     device_id: Optional[str] = None
     interpretation: str
     competing_factor: Optional[str] = None
+    affected_nodes: Optional[List[str]] = None

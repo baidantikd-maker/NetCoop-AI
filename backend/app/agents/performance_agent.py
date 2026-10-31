@@ -109,7 +109,8 @@ class PerformanceAgent(BaseAgent):
             ))
 
         # 4. Jitter analysis
-        if telemetry.jitter_ms is not None and telemetry.jitter_ms > 20:
+        if telemetry.jitter_ms is not None:
+            jitter_severity = "high" if telemetry.jitter_ms > 30 else ("medium" if telemetry.jitter_ms > 20 else "info")
             messages.append(self.create_message(
                 incident_id=incident_id,
                 target_agent="fault_correlation_agent",
@@ -120,9 +121,45 @@ class PerformanceAgent(BaseAgent):
                     "metric": "jitter_ms",
                     "value": telemetry.jitter_ms,
                     "unit": "ms",
-                    "severity": "medium",
+                    "severity": jitter_severity,
                     "device_id": telemetry.device_id,
-                    "interpretation": f"Elevated jitter ({telemetry.jitter_ms}ms) indicative of buffer delay variation."
+                    "interpretation": f"Jitter is within nominal range ({telemetry.jitter_ms}ms)." if telemetry.jitter_ms <= 20 else f"Elevated jitter ({telemetry.jitter_ms}ms) indicative of buffer delay variation."
+                }
+            ))
+
+        # 5. Throughput and bandwidth observations
+        if telemetry.throughput_mbps is not None:
+            throughput = telemetry.throughput_mbps
+            ratio = (throughput / telemetry.bandwidth_mbps) if telemetry.bandwidth_mbps else None
+            messages.append(self.create_message(
+                incident_id=incident_id,
+                target_agent="fault_correlation_agent",
+                message_type="agent_finding",
+                payload={
+                    "finding_id": f"PERF-{uuid.uuid4().hex[:4].upper()}",
+                    "category": "performance",
+                    "metric": "throughput_mbps",
+                    "value": throughput,
+                    "unit": "Mbps",
+                    "severity": "medium" if ratio is not None and ratio < 0.25 else "info",
+                    "device_id": telemetry.device_id,
+                    "interpretation": f"Observed throughput is {throughput} Mbps" + (f" ({ratio:.0%} of reported bandwidth)." if ratio is not None else ".")
+                }
+            ))
+        if telemetry.bandwidth_mbps is not None:
+            messages.append(self.create_message(
+                incident_id=incident_id,
+                target_agent="fault_correlation_agent",
+                message_type="agent_finding",
+                payload={
+                    "finding_id": f"PERF-{uuid.uuid4().hex[:4].upper()}",
+                    "category": "performance",
+                    "metric": "bandwidth_mbps",
+                    "value": telemetry.bandwidth_mbps,
+                    "unit": "Mbps",
+                    "severity": "info",
+                    "device_id": telemetry.device_id,
+                    "interpretation": f"Reported link bandwidth is {telemetry.bandwidth_mbps} Mbps."
                 }
             ))
 

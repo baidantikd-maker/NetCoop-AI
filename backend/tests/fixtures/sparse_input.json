@@ -1,0 +1,5 @@
+{
+  "device_id": "TEST_DEVICE_SPARSE",
+  "latency_ms": 18,
+  "packet_loss_pct": 0
+}

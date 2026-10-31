@@ -1,0 +1,5 @@
+{
+  "schema_version": "99.0",
+  "device_id": "TEST_BAD_SCHEMA",
+  "latency_ms": "not-a-number"
+}

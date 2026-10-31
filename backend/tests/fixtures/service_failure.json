@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-10-31T10:00:00Z",
+  "device_id": "TEST_SERVER_UNREACHABLE",
+  "device_type": "server",
+  "status": "unreachable",
+  "latency_ms": 1850,
+  "packet_loss_pct": 82,
+  "link_utilization_pct": 40,
+  "cpu_utilization_pct": 98,
+  "memory_utilization_pct": 80,
+  "queue_drops": 0,
+  "interface_errors": 0
+}

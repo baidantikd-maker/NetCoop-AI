@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-10-31T10:00:00Z",
+  "device_id": "TEST_SWITCH_NORMAL",
+  "device_type": "switch",
+  "status": "up",
+  "latency_ms": 20,
+  "jitter_ms": 5,
+  "packet_loss_pct": 0,
+  "link_utilization_pct": 30,
+  "cpu_utilization_pct": 20,
+  "memory_utilization_pct": 40,
+  "queue_drops": 0,
+  "interface_errors": 0,
+  "topology": {"connected_to": ["TEST_UPSTREAM_ROUTER"]}
+}

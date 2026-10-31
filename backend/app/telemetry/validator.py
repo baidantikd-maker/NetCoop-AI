@@ -1,6 +1,6 @@
 import re
+import math
 from typing import Any, Dict, List
-from datetime import datetime, timezone
 from app.schemas.telemetry import NormalizedTelemetry, TelemetryValidationResult, ValidationIssue
 
 SUPPORTED_SCHEMAS = ["1.0", "1.1", "2026.1"]
@@ -24,6 +24,20 @@ FIELD_ALIASES = {
     "errors": "interface_errors",
     "signal": "wireless_signal_dbm",
     "rssi": "wireless_signal_dbm"
+}
+
+UNIT_CONVERSIONS = {
+    "latency_ms": {"ms": 1.0, "msec": 1.0, "milliseconds": 1.0, "s": 1000.0, "sec": 1000.0, "us": 0.001, "µs": 0.001, "μs": 0.001},
+    "jitter_ms": {"ms": 1.0, "msec": 1.0, "milliseconds": 1.0, "s": 1000.0, "sec": 1000.0, "us": 0.001, "µs": 0.001, "μs": 0.001},
+    "throughput_mbps": {"mbps": 1.0, "mb/s": 8.0, "gbps": 1000.0, "gb/s": 8000.0, "kbps": 0.001, "kb/s": 0.008, "bps": 0.000001, "bit/s": 0.000001},
+    "bandwidth_mbps": {"mbps": 1.0, "mb/s": 8.0, "gbps": 1000.0, "gb/s": 8000.0, "kbps": 0.001, "kb/s": 0.008, "bps": 0.000001, "bit/s": 0.000001},
+    "packet_loss_pct": {"%": 1.0, "percent": 1.0, "pct": 1.0},
+    "link_utilization_pct": {"%": 1.0, "percent": 1.0, "pct": 1.0},
+    "cpu_utilization_pct": {"%": 1.0, "percent": 1.0, "pct": 1.0},
+    "memory_utilization_pct": {"%": 1.0, "percent": 1.0, "pct": 1.0},
+    "wireless_signal_dbm": {"dbm": 1.0},
+    "queue_drops": {"": 1.0, "packet": 1.0, "packets": 1.0, "pkt": 1.0, "pkts": 1.0},
+    "interface_errors": {"": 1.0, "error": 1.0, "errors": 1.0, "err": 1.0, "errs": 1.0},
 }
 
 def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult:
@@ -92,16 +106,9 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
     else:
         normalized["device_id"] = str(device_id).strip()
 
-    # Required field 2: timestamp
+    # Keep absent optional fields absent; do not create telemetry values.
     raw_ts = normalized.get("timestamp")
-    if not raw_ts:
-        warnings.append(ValidationIssue(
-            field="timestamp",
-            message="Timestamp not provided; generating current UTC timestamp for incident context",
-            severity="warning"
-        ))
-        normalized["timestamp"] = datetime.now(timezone.utc).isoformat()
-    else:
+    if raw_ts is not None:
         normalized["timestamp"] = str(raw_ts)
 
     # Validate & normalize numeric fields
@@ -124,25 +131,37 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
         if val is None:
             continue
 
-        # Try parsing strings with units (e.g. "94%", "280ms", "120 Mbps")
+        # Parse numbers and convert supported unit strings to each field's canonical unit.
         parsed_val = None
-        if isinstance(val, (int, float)):
-            parsed_val = float(val) if "pct" in field_name or "signal" in field_name or "latency" in field_name or "jitter" in field_name else int(val)
+        unit_str = ""
+        if isinstance(val, bool):
+            parsed_val = None
+        elif isinstance(val, (int, float)):
+            parsed_val = float(val)
         elif isinstance(val, str):
-            # Parse number with possible unit suffix
-            match = re.match(r"^([-+]?\d*\.?\d+)\s*([a-zA-Z%_]*)$", val.strip())
+            match = re.match(r"^\s*([-+]?(?:\d+(?:\.\d*)?|\.\d+))\s*([a-zA-Z%µμ/]*)\s*$", val)
             if match:
-                num_str, unit_str = match.groups()
-                try:
-                    parsed_val = float(num_str)
+                parsed_val = float(match.group(1))
+                unit_str = match.group(2).lower()
+                conversions = UNIT_CONVERSIONS[field_name]
+                if unit_str and unit_str not in conversions:
+                    parsed_val = None
+                else:
+                    parsed_val *= conversions.get(unit_str, 1.0)
                     if unit_str:
                         warnings.append(ValidationIssue(
                             field=field_name,
-                            message=f"Extracted unit '{unit_str}' from value string '{val}' for field '{field_name}'",
+                            message=f"Converted '{val}' to canonical unit for {field_name}",
                             severity="warning"
                         ))
-                except ValueError:
-                    parsed_val = None
+
+        if parsed_val is not None and not math.isfinite(parsed_val):
+            parsed_val = None
+        if parsed_val is not None and field_name in {"queue_drops", "interface_errors"}:
+            if not parsed_val.is_integer():
+                parsed_val = None
+            else:
+                parsed_val = int(parsed_val)
 
         if parsed_val is None:
             errors.append(ValidationIssue(
@@ -153,47 +172,43 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
             normalized[field_name] = None
         else:
             if parsed_val < min_val or parsed_val > max_val:
-                warnings.append(ValidationIssue(
+                errors.append(ValidationIssue(
                     field=field_name,
-                    message=f"Value {parsed_val} {unit} is outside standard operational range [{min_val}, {max_val}]",
-                    severity="warning"
+                    message=f"Value {parsed_val} {unit} is outside the accepted range [{min_val}, {max_val}]",
+                    severity="error"
                 ))
             normalized[field_name] = parsed_val
 
     # Topology normalization
     top = normalized.get("topology")
-    if top is None or not isinstance(top, dict):
-        normalized["topology"] = {"connected_to": []}
-        warnings.append(ValidationIssue(
+    if top is not None and not isinstance(top, dict):
+        errors.append(ValidationIssue(
             field="topology",
-            message="No topology map supplied; connectivity agent will operate with local scope limitations",
-            severity="warning"
+            message="Topology must be a JSON object when provided",
+            severity="error"
+        ))
+    elif isinstance(top, dict) and "connected_to" in top and (
+        not isinstance(top["connected_to"], list)
+        or any(not isinstance(node, str) or not node.strip() for node in top["connected_to"])
+    ):
+        errors.append(ValidationIssue(
+            field="topology.connected_to",
+            message="Topology connected_to must be an array of non-empty device ID strings when provided",
+            severity="error"
         ))
 
     is_valid = len(errors) == 0
 
     normalized_model = None
     if is_valid:
-        # Determine device type (explicit or infer from device_id naming conventions)
+        # Do not infer telemetry values from naming conventions.
         dev_type = normalized.get("device_type")
-        if not dev_type or dev_type == "unknown":
-            did_upper = str(normalized.get("device_id", "")).upper()
-            if did_upper.startswith("SW_") or "_SW_" in did_upper or "SWITCH" in did_upper:
-                dev_type = "switch"
-            elif did_upper.startswith("AP_") or "_AP_" in did_upper or "WIFI" in did_upper or "ACCESS_POINT" in did_upper:
-                dev_type = "access_point"
-            elif did_upper.startswith("RTR_") or "_RTR_" in did_upper or "ROUTER" in did_upper:
-                dev_type = "router"
-            elif did_upper.startswith("SRV_") or "_SRV_" in did_upper or "SERVER" in did_upper:
-                dev_type = "server"
-            else:
-                dev_type = "switch"
 
         normalized_model = NormalizedTelemetry(
-            timestamp=normalized["timestamp"],
+            timestamp=normalized.get("timestamp"),
             device_id=normalized["device_id"],
-            device_type=str(dev_type),
-            status=str(normalized.get("status", "up")),
+            device_type=str(dev_type) if dev_type is not None else None,
+            status=str(normalized["status"]) if normalized.get("status") is not None else None,
             latency_ms=normalized.get("latency_ms"),
             jitter_ms=normalized.get("jitter_ms"),
             packet_loss_pct=normalized.get("packet_loss_pct"),
@@ -205,7 +220,7 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
             queue_drops=normalized.get("queue_drops"),
             interface_errors=normalized.get("interface_errors"),
             wireless_signal_dbm=normalized.get("wireless_signal_dbm"),
-            topology=normalized.get("topology", {}),
+            topology=normalized.get("topology"),
             raw_payload=raw_data
         )
 

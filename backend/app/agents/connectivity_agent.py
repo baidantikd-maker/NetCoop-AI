@@ -15,7 +15,11 @@ class ConnectivityAgent(BaseAgent):
         self.status = "running"
         messages: List[AgentMessageEnvelope] = []
 
-        connected = telemetry.topology.get("connected_to", [])
+        topology = telemetry.topology
+        connected = topology.get("connected_to") if topology else None
+        if connected is None:
+            self.status = "skipped"
+            return messages
         affected_devices = [telemetry.device_id]
         if connected and isinstance(connected, list):
             affected_devices.extend([str(c) for c in connected])
@@ -34,7 +38,7 @@ class ConnectivityAgent(BaseAgent):
                 "metric": "topology_adjacency",
                 "value": len(connected),
                 "unit": "links",
-                "severity": "info" if telemetry.status.lower() == "up" else "high",
+                "severity": "info",
                 "device_id": telemetry.device_id,
                 "affected_nodes": affected_devices,
                 "interpretation": scope_desc

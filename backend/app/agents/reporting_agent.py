@@ -69,7 +69,13 @@ class ReportingAgent(BaseAgent):
             actions = RECOMMENDATIONS_MAP["interface_fault"]
         elif "unreachable" in cause_lower or "service" in cause_lower or "dns" in cause_lower:
             actions = RECOMMENDATIONS_MAP["service_failure"]
-        elif "nominal" in cause_lower or "normal" in cause_lower:
+        elif "resource" in cause_lower or "cpu" in cause_lower or "memory" in cause_lower:
+            actions = [
+                "Inspect processes and services consuming CPU or memory on the affected device",
+                "Review device logs and resource trends for leaks or sudden load changes",
+                "Check whether queue drops and packet loss recover after load is reduced"
+            ]
+        elif status == "normal" or "nominal" in cause_lower or "normal" in cause_lower:
             actions = RECOMMENDATIONS_MAP["normal"]
         else:
             actions = RECOMMENDATIONS_MAP["insufficient"]

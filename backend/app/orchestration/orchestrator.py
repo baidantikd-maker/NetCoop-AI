@@ -62,7 +62,7 @@ class AgentOrchestrator:
         # Orchestrator Task Dispatch message
         all_messages.append(AgentMessageEnvelope(
             schema_version="1.0",
-            message_id=f"MSG-ORCH-DISPATCH",
+            message_id=f"MSG-{uuid.uuid4().hex.upper()}",
             incident_id=inc_id,
             source_agent="orchestrator",
             target_agent="specialist_agents",
@@ -76,13 +76,13 @@ class AgentOrchestrator:
         ))
 
         # 1. Dispatch to specialist agents
-        perf_msgs = self.perf_agent.analyze(telemetry, inc_id)
+        perf_msgs = self._run_specialist(self.perf_agent, telemetry, inc_id)
         all_messages.extend(perf_msgs)
 
-        infra_msgs = self.infra_agent.analyze(telemetry, inc_id)
+        infra_msgs = self._run_specialist(self.infra_agent, telemetry, inc_id)
         all_messages.extend(infra_msgs)
 
-        conn_msgs = self.conn_agent.analyze(telemetry, inc_id)
+        conn_msgs = self._run_specialist(self.conn_agent, telemetry, inc_id)
         all_messages.extend(conn_msgs)
 
         # 2. Fault Correlation Stage
@@ -108,5 +108,27 @@ class AgentOrchestrator:
             agent_statuses=agent_statuses,
             messages=all_messages,
             report=final_report,
-            status="completed"
+            status="partial" if any(status["status"] == "failed" for status in agent_statuses.values()) else "completed"
         )
+
+    @staticmethod
+    def _run_specialist(agent, telemetry: NormalizedTelemetry, incident_id: str) -> List[AgentMessageEnvelope]:
+        try:
+            return agent.analyze(telemetry, incident_id)
+        except Exception as exc:
+            agent.status = "failed"
+            return [AgentMessageEnvelope(
+                schema_version="1.0",
+                message_id=f"MSG-{uuid.uuid4().hex.upper()}",
+                incident_id=incident_id,
+                source_agent=agent.name,
+                target_agent="fault_correlation_agent",
+                message_type="agent_error",
+                status="failed",
+                payload={
+                    "error_type": type(exc).__name__,
+                    "detail": str(exc),
+                    "agent": agent.name
+                },
+                warnings=["Specialist failed; other agents continued with available telemetry."]
+            )]
