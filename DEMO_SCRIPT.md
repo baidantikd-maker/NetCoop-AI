@@ -10,7 +10,7 @@ Target length: 4 minutes. Use only the synthetic fixtures under `backend/tests/f
 
 ## 0:30–1:40 — End-to-end congestion diagnosis
 
-- Open **New Diagnosis** and upload `backend/tests/fixtures/link_congestion.json`.
+- Generate and upload a repeatable hardware scenario with the simulated topology flag: `python backend/tests/generate_telemetry.py hardware_failure --seed 42 --include-simulated-topology --output demo-telemetry.json`.
 - Validate and start the diagnosis.
 - Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops.
 - Open the report and point out the root cause, evidence values, source agents, alternatives, and recommended actions.

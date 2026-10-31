@@ -106,6 +106,22 @@ python -m unittest discover -s backend/tests -v
 
 The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not imported by the API or loaded into the dashboard. You can upload one explicitly in the dashboard for a repeatable demonstration, or send it to the API:
 
+Generate a fresh synthetic scenario locally with the test-only generator:
+
+```powershell
+python backend/tests/generate_telemetry.py hardware_failure --seed 42 --output telemetry.json
+```
+
+Upload `telemetry.json` in the dashboard. Add `--include-simulated-topology` only when demonstrating the Connectivity Agent with an explicitly synthetic neighbor. Do not use simulated topology as real network data.
+
+Or POST the generated object directly:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/diagnostics?incident_name=DEMO-HARDWARE" \
+  -H "Content-Type: application/json" \
+  -d @telemetry.json
+```
+
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/diagnostics?incident_name=DEMO-CONGESTION" \
   -H "Content-Type: application/json" \
