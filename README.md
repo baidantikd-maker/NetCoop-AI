@@ -131,7 +131,7 @@ curl -X POST "http://127.0.0.1:8000/api/diagnostics?incident_name=DEMO-CONGESTIO
 See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for a timed 3–5 minute presentation walkthrough.
 ## 🔍 How the Diagnostic Result Is Chosen
 
-The correlator compares five rule-based explanations using the supplied metrics: congestion, weak Wi-Fi, interface fault, service failure, and device resource exhaustion. A diagnosis requires relevant evidence from at least two specialist agents. Closely matched explanations are marked **inconclusive**. A normal result requires at least four healthy supplied measurements from at least two agents; otherwise the report says **insufficient evidence**. The report contains no confidence percentage.
+The correlator compares five rule-based explanations using the supplied metrics: congestion, weak Wi-Fi, interface fault, service failure, and device resource exhaustion. A diagnosis requires relevant evidence from at least two specialist agents. Closely matched explanations are marked **inconclusive**. A normal result requires at least four healthy supplied measurements from at least two agents; otherwise the report says **insufficient evidence**. The report includes a rule-based confidence estimate derived from the winning hypothesis score and ambiguity between competing hypotheses. It is not an LLM probability or a statistically calibrated guarantee; insufficient evidence is reported as 20% with the `insufficient` category.
 
 | Explanation | Main evidence considered |
 |---|---|
@@ -170,7 +170,7 @@ Reports state that the result is rule-based, identify missing or insufficient ev
 | **Infrastructure Agent** | CPU, memory, queue drops, interface errors, device status |
 | **Connectivity Agent** | Topology, upstream links, blast radius (affected devices) |
 
-The **Fault Correlation Agent** validates specialist finding envelopes, applies fixed scoring rules, requires evidence from multiple agents, and marks close competing hypotheses inconclusive. No LLM is currently connected; all agents are locally implemented Python rules and templates.
+The **Fault Correlation Agent** validates specialist finding envelopes, applies fixed scoring rules, requires evidence from multiple agents, and marks close competing hypotheses inconclusive. The **Reporting Agent** builds corrective actions from the selected cause and its actual supporting metric values; inconclusive reports recommend checks that distinguish the competing causes. No LLM is currently connected; diagnosis and recommendations use locally implemented Python rules.
 
 ### Why This Section Exists
 
