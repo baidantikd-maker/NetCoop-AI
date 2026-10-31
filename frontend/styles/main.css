@@ -554,6 +554,43 @@ body {
   letter-spacing: 0.05em;
 }
 
+/* New Diagnosis telemetry fields */
+#view-new-diagnosis input[type="text"],
+#view-new-diagnosis textarea {
+  border: 2px solid #10b981 !important;
+  box-shadow: 0 0 7px rgba(16, 185, 129, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#view-new-diagnosis input[type="file"] {
+  border: 2px dashed #10b981 !important;
+  box-shadow: 0 0 7px rgba(16, 185, 129, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+#view-new-diagnosis input[type="file"]::file-selector-button,
+#view-new-diagnosis input[type="file"]::-webkit-file-upload-button {
+  margin-right: 0.75rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid #10b981;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font: 600 0.78rem var(--font-sans);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+#view-new-diagnosis input[type="file"]::file-selector-button:hover,
+#view-new-diagnosis input[type="file"]::-webkit-file-upload-button:hover {
+  border-color: #34d399;
+  background: linear-gradient(135deg, #34d399, #10b981);
+}
+#view-new-diagnosis input[type="text"]:focus,
+#view-new-diagnosis input[type="file"]:focus,
+#view-new-diagnosis textarea:focus {
+  border-color: #34d399 !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  outline: none;
+}
+
 .recent-incidents-card {
   background: linear-gradient(145deg, rgba(212, 160, 23, 0.12), rgba(15, 23, 42, 0.88) 58%);
   border: 2px solid rgba(212, 160, 23, 0.88);
