@@ -45,13 +45,33 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
             severity="error"
         ))
 
+    # Flatten nested metric containers if present (e.g. "metrics", "telemetry", "data", "stats", "measurements", "counters")
+    nested_containers = ["metrics", "telemetry", "data", "stats", "measurements", "counters"]
+    flat_data: Dict[str, Any] = {}
+
+    for k, v in raw_data.items():
+        if k not in nested_containers:
+            flat_data[k] = v
+
+    for container_key in nested_containers:
+        nested_val = raw_data.get(container_key)
+        if isinstance(nested_val, dict):
+            for k, v in nested_val.items():
+                if k not in flat_data or flat_data[k] is None:
+                    flat_data[k] = v
+                    warnings.append(ValidationIssue(
+                        field=f"{container_key}.{k}",
+                        message=f"Extracted nested metric '{k}' from '{container_key}' container",
+                        severity="warning"
+                    ))
+
     # Normalized working dictionary
     normalized: Dict[str, Any] = {}
 
     # Map aliases
-    for key, val in raw_data.items():
+    for key, val in flat_data.items():
         canonical_key = FIELD_ALIASES.get(key.lower(), key)
-        if canonical_key != key and canonical_key not in raw_data:
+        if canonical_key != key and canonical_key not in flat_data:
             warnings.append(ValidationIssue(
                 field=key,
                 message=f"Field alias '{key}' normalized to canonical name '{canonical_key}'",
@@ -154,10 +174,25 @@ def normalize_and_validate_telemetry(raw_data: Any) -> TelemetryValidationResult
 
     normalized_model = None
     if is_valid:
+        # Determine device type (explicit or infer from device_id naming conventions)
+        dev_type = normalized.get("device_type")
+        if not dev_type or dev_type == "unknown":
+            did_upper = str(normalized.get("device_id", "")).upper()
+            if did_upper.startswith("SW_") or "_SW_" in did_upper or "SWITCH" in did_upper:
+                dev_type = "switch"
+            elif did_upper.startswith("AP_") or "_AP_" in did_upper or "WIFI" in did_upper or "ACCESS_POINT" in did_upper:
+                dev_type = "access_point"
+            elif did_upper.startswith("RTR_") or "_RTR_" in did_upper or "ROUTER" in did_upper:
+                dev_type = "router"
+            elif did_upper.startswith("SRV_") or "_SRV_" in did_upper or "SERVER" in did_upper:
+                dev_type = "server"
+            else:
+                dev_type = "switch"
+
         normalized_model = NormalizedTelemetry(
             timestamp=normalized["timestamp"],
             device_id=normalized["device_id"],
-            device_type=str(normalized.get("device_type", "switch")),
+            device_type=str(dev_type),
             status=str(normalized.get("status", "up")),
             latency_ms=normalized.get("latency_ms"),
             jitter_ms=normalized.get("jitter_ms"),

@@ -1,5 +1,6 @@
 // NetCoop AI Frontend API Client
-const API_BASE = window.location.origin.includes('8000') || window.location.origin.includes('localhost') 
+// When served by FastAPI or web origin, use relative '/api'; fallback to localhost for file://
+const API_BASE = (window.location.protocol === 'http:' || window.location.protocol === 'https:')
   ? '/api' 
   : 'http://127.0.0.1:8000/api';
 

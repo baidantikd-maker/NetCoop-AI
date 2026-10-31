@@ -90,6 +90,16 @@ class CorrelationAgent(BaseAgent):
                 source_agent="performance_agent"
             ))
 
+        if "cpu_utilization_pct" in metrics_map and metrics_map["cpu_utilization_pct"]["value"] >= 80:
+            cong_score += 0.10
+            cong_evidence.append(SupportingEvidenceItem(
+                metric="cpu_utilization_pct",
+                value=metrics_map["cpu_utilization_pct"]["value"],
+                unit="%",
+                interpretation=f"Critically elevated CPU utilization ({metrics_map['cpu_utilization_pct']['value']}%) indicates control-plane saturation under load",
+                source_agent="infrastructure_agent"
+            ))
+
         hypotheses.append({
             "name": "Likely link congestion causing egress queue drops and transit delay",
             "score": min(cong_score, 0.94),
@@ -159,7 +169,7 @@ class CorrelationAgent(BaseAgent):
                 source_agent="performance_agent"
             ))
 
-        if "device_status" in metrics_map and metrics_map["device_status"]["value"] == "degraded":
+        if "device_status" in metrics_map and str(metrics_map["device_status"]["value"]).lower() in ["degraded", "critical", "error", "fault"]:
             phy_score += 0.15
 
         hypotheses.append({
@@ -173,7 +183,7 @@ class CorrelationAgent(BaseAgent):
         # 4. Hypothesis: Core Network Service (DNS/DHCP) Unreachable / Server Overload
         srv_score = 0.0
         srv_evidence: List[SupportingEvidenceItem] = []
-        if "device_status" in metrics_map and metrics_map["device_status"]["value"] == "unreachable":
+        if "device_status" in metrics_map and str(metrics_map["device_status"]["value"]).lower() in ["unreachable", "down", "offline"]:
             srv_score += 0.50
             srv_evidence.append(SupportingEvidenceItem(
                 metric="device_status",

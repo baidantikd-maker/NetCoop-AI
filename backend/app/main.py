@@ -1,4 +1,11 @@
 import os
+import sys
+
+# Ensure backend directory is in sys.path so 'from app...' imports succeed from any working directory
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -55,4 +62,6 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("app.main:app", host=host, port=port)

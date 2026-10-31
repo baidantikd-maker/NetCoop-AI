@@ -89,5 +89,42 @@ class TestNetCoopScenarios(unittest.TestCase):
             self.assertIsNotNone(msg.target_agent)
             self.assertIn(msg.message_type, ["agent_task", "agent_finding", "agent_result", "agent_status", "agent_error"])
 
+    def test_nested_metrics_and_critical_status(self):
+        with open(os.path.join(DATA_DIR, "campus_switch_critical.json"), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        val = normalize_and_validate_telemetry(data)
+        self.assertTrue(val.valid)
+        self.assertIsNotNone(val.normalized_data)
+        self.assertEqual(val.normalized_data.device_id, "SW_CAMPUS_2")
+        self.assertEqual(val.normalized_data.device_type, "switch")
+        self.assertEqual(val.normalized_data.cpu_utilization_pct, 99.9)
+        self.assertEqual(val.normalized_data.link_utilization_pct, 100.0)
+        self.assertEqual(val.normalized_data.packet_loss_pct, 26.98)
+        self.assertEqual(val.normalized_data.latency_ms, 563.85)
+        self.assertEqual(val.normalized_data.queue_drops, 5839)
+        self.assertEqual(val.normalized_data.interface_errors, 329)
+
+        orch = AgentOrchestrator()
+        run = orch.run_diagnosis(val.normalized_data, val)
+        self.assertEqual(run.report.status, "diagnosed")
+        self.assertIn("congestion", run.report.suspected_root_cause.lower())
+        self.assertGreaterEqual(run.report.confidence, 0.85)
+
+        # Check evidence contains link utilization, queue drops, latency, and CPU
+        metrics = [e.metric for e in run.report.supporting_evidence]
+        self.assertIn("link_utilization_pct", metrics)
+        self.assertIn("queue_drops", metrics)
+        self.assertIn("cpu_utilization_pct", metrics)
+
+    def test_direct_api_payload_processing(self):
+        from app.api.routes import run_diagnostics, DiagnosticRequest
+        with open(os.path.join(DATA_DIR, "campus_switch_critical.json"), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        req = DiagnosticRequest.model_validate(data)
+        res = run_diagnostics(req)
+        self.assertEqual(res["status"], "completed")
+        self.assertIsNotNone(res["report"])
+        self.assertIn("congestion", res["report"]["suspected_root_cause"].lower())
+
 if __name__ == "__main__":
     unittest.main()

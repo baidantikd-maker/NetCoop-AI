@@ -54,10 +54,18 @@ SCENARIOS_META = {
         "category": "interoperability",
         "description": "Malformed units, missing required device_id, negative queue drops, and unsupported schema version 99.4.",
         "file": "incompatible_schema.json"
+    },
+    "campus_switch_critical": {
+        "id": "campus_switch_critical",
+        "title": "Campus Switch Critical Squeeze (SW_CAMPUS_2)",
+        "category": "performance",
+        "description": "Full-blown 100% link utilization, 99.9% CPU pegging, 5839 queue drops, and physical framing errors on campus switch.",
+        "file": "campus_switch_critical.json"
     }
 }
 
 class DiagnosticRequest(BaseModel):
+    model_config = {"extra": "allow"}
     scenario_id: Optional[str] = None
     telemetry: Optional[Dict[str, Any]] = None
     incident_name: Optional[str] = None
@@ -108,6 +116,17 @@ def run_diagnostics(req: DiagnosticRequest):
                 raw_data = json.load(f)
         else:
             raise HTTPException(status_code=404, detail=f"Scenario file '{SCENARIOS_META[req.scenario_id]['file']}' not found")
+
+    if not raw_data:
+        # Check if the request body itself is the direct telemetry payload
+        extra_fields = req.model_dump(exclude_unset=True)
+        extra_fields.pop("scenario_id", None)
+        extra_fields.pop("telemetry", None)
+        incident_name = extra_fields.pop("incident_name", None) or req.incident_name
+        if "device_id" in extra_fields or "metrics" in extra_fields or "timestamp" in extra_fields:
+            raw_data = extra_fields
+            if incident_name and not req.incident_name:
+                req.incident_name = incident_name
 
     if not raw_data:
         raise HTTPException(status_code=400, detail="Either 'scenario_id' or 'telemetry' payload must be provided")

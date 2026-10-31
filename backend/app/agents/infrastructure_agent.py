@@ -16,8 +16,9 @@ class InfrastructureAgent(BaseAgent):
         messages: List[AgentMessageEnvelope] = []
 
         # 1. Device reachability/status
-        if telemetry.status.lower() in ["unreachable", "down", "degraded"]:
-            severity = "critical" if telemetry.status.lower() in ["unreachable", "down"] else "high"
+        st_lower = telemetry.status.lower()
+        if st_lower in ["unreachable", "down", "degraded", "critical", "error", "fault", "offline"]:
+            severity = "critical" if st_lower in ["unreachable", "down", "critical", "error", "fault"] else "high"
             messages.append(self.create_message(
                 incident_id=incident_id,
                 target_agent="fault_correlation_agent",
