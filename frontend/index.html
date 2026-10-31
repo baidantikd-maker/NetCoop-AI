@@ -51,13 +51,6 @@
         Web Architecture
       </button>
     </nav>
-
-    <div class="header-status">
-      <div class="pulse-indicator">
-        <span class="pulse-dot" id="healthDot"></span>
-        <span id="healthStatus">Engine Connecting...</span>
-      </div>
-    </div>
   </header>
 
   <!-- Main Views Container -->
@@ -118,6 +111,86 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Agent workflow overview -->
+      <section class="glass-card agent-flow-section" aria-labelledby="agentFlowTitle">
+        <div class="card-header">
+          <div>
+            <div class="card-title" id="agentFlowTitle">How the five agents work</div>
+            <p class="agent-flow-intro">Each diagnosis follows the same evidence-first path from submitted telemetry to a clear report.</p>
+          </div>
+          <span class="flow-label">DIAGNOSIS FLOW</span>
+        </div>
+
+        <div class="agent-flow-layout">
+        <div class="agent-flow">
+          <div class="flow-node flow-input">
+            <span class="flow-step">START</span>
+            <strong>Telemetry submitted</strong>
+            <span>One normalized incident record</span>
+          </div>
+          <div class="flow-connector" aria-hidden="true"><span>↓</span><small>Analyze in parallel</small></div>
+
+          <div class="flow-specialists" aria-label="Three specialist agents analyze telemetry in parallel">
+            <article class="flow-agent flow-performance">
+              <span class="flow-step">AGENT 01</span>
+              <h3>Performance</h3>
+              <p>Checks latency, jitter, packet loss, bandwidth, and link utilization.</p>
+              <span class="flow-output">Performance findings</span>
+            </article>
+            <article class="flow-agent flow-infrastructure">
+              <span class="flow-step">AGENT 02</span>
+              <h3>Infrastructure</h3>
+              <p>Checks device status, CPU/RAM, queue drops, interface errors, and signal.</p>
+              <span class="flow-output">Device health findings</span>
+            </article>
+            <article class="flow-agent flow-connectivity">
+              <span class="flow-step">AGENT 03</span>
+              <h3>Connectivity</h3>
+              <p>Maps topology and adjacent devices to estimate the affected network area.</p>
+              <span class="flow-output">Topology findings</span>
+            </article>
+          </div>
+
+          <div class="flow-connector" aria-hidden="true"><span>↓</span><small>Findings are combined</small></div>
+          <article class="flow-agent flow-correlation">
+            <span class="flow-step">AGENT 04</span>
+            <h3>Fault Correlation</h3>
+            <p>Scores evidence across specialists, compares likely causes, and records uncertainty.</p>
+            <span class="flow-output">Ranked diagnosis + confidence</span>
+          </article>
+          <div class="flow-connector" aria-hidden="true"><span>↓</span><small>Diagnosis passed forward</small></div>
+          <article class="flow-agent flow-reporting">
+            <span class="flow-step">AGENT 05</span>
+            <h3>Reporting</h3>
+            <p>Turns the diagnosis into a unified report with practical corrective actions.</p>
+            <span class="flow-output">Evidence-backed incident report</span>
+          </article>
+        </div>
+        <aside class="agent-network-panel" aria-label="Network graph showing specialist findings converging into a diagnosis">
+          <div class="network-heading">
+            <span class="flow-step">LIVE EVIDENCE MAP</span>
+            <strong>Signals converge into one diagnosis</strong>
+            <span>Three specialist views feed the correlation stage, then move into reporting.</span>
+          </div>
+          <div class="network-graph-wrap">
+            <svg class="network-graph" viewBox="0 0 520 390" role="img" aria-labelledby="networkGraphTitle networkGraphDesc">
+              <title id="networkGraphTitle">Agent evidence network</title>
+              <desc id="networkGraphDesc">Telemetry branches to performance, infrastructure and connectivity agents. Their findings converge at fault correlation and continue to reporting.</desc>
+              <path class="network-link network-link-main" d="M72 195 C125 195 126 70 190 70 M72 195 C125 195 126 160 190 160 M72 195 C125 195 126 250 190 250 M250 70 C315 70 309 165 365 185 M250 160 C310 160 315 180 365 190 M250 250 C315 250 309 205 365 195" />
+              <path class="network-link network-link-report" d="M425 195 C462 195 462 195 482 195" />
+              <g class="network-node node-source"><circle class="node-halo" cx="72" cy="195" r="24"/><circle class="node-core" cx="72" cy="195" r="8"/><text x="72" y="238">Telemetry</text></g>
+              <g class="network-node node-performance"><circle class="node-halo" cx="220" cy="70" r="20"/><circle class="node-core" cx="220" cy="70" r="7"/><text x="220" y="42">Performance</text></g>
+              <g class="network-node node-infrastructure"><circle class="node-halo" cx="220" cy="160" r="20"/><circle class="node-core" cx="220" cy="160" r="7"/><text x="220" y="132">Infrastructure</text></g>
+              <g class="network-node node-connectivity"><circle class="node-halo" cx="220" cy="250" r="20"/><circle class="node-core" cx="220" cy="250" r="7"/><text x="220" y="282">Connectivity</text></g>
+              <g class="network-node node-correlation"><circle class="node-halo" cx="395" cy="195" r="28"/><circle class="node-core" cx="395" cy="195" r="10"/><text x="395" y="244">Correlation</text></g>
+              <g class="network-node node-report"><circle class="node-halo" cx="482" cy="195" r="19"/><circle class="node-core" cx="482" cy="195" r="7"/><text x="482" y="160">Report</text></g>
+            </svg>
+          </div>
+          <div class="network-legend"><span><i></i>Telemetry signals</span><span><i></i>Correlated evidence</span><span><i></i>Final report</span></div>
+        </aside>
+        </div>
+      </section>
     </section>
 
     <!-- VIEW 2: NEW DIAGNOSIS -->

@@ -11,8 +11,6 @@ const state = {
 
 // DOM Elements
 const elements = {
-  healthStatus: document.getElementById('healthStatus'),
-  healthDot: document.getElementById('healthDot'),
   navTabs: document.querySelectorAll('.nav-tab'),
   viewPanels: document.querySelectorAll('.view-panel'),
   
@@ -62,11 +60,7 @@ const elements = {
 async function initApp() {
   setupNavigation();
   setupEventListeners();
-  await checkHealth();
   await refreshHistory();
-
-  // Polling heartbeat every 15s
-  setInterval(checkHealth, 15000);
 }
 
 // Navigation Tabs
@@ -87,20 +81,6 @@ function switchTab(tabId) {
   elements.viewPanels.forEach(panel => {
     panel.classList.toggle('active', panel.id === `view-${tabId}`);
   });
-}
-
-// Health Check
-async function checkHealth() {
-  const health = await NetCoopAPI.getHealth();
-  if (health.status === 'healthy') {
-    elements.healthStatus.textContent = `Engine Online (v${health.version})`;
-    elements.healthDot.style.background = 'var(--accent-emerald)';
-    elements.healthDot.style.boxShadow = '0 0 8px var(--accent-emerald)';
-  } else {
-    elements.healthStatus.textContent = 'Engine Offline';
-    elements.healthDot.style.background = 'var(--accent-rose)';
-    elements.healthDot.style.boxShadow = '0 0 8px var(--accent-rose)';
-  }
 }
 
 // Validate Input

@@ -360,6 +360,63 @@ body {
   margin-top: 0.25rem;
 }
 
+/* Overview agent workflow */
+.agent-flow-section { margin-top: 1.25rem; }
+.agent-flow-section .card-header { align-items: flex-start; }
+.agent-flow-intro { color: var(--text-secondary); font-size: 0.82rem; margin-top: 0.3rem; }
+.agent-flow-layout { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr); gap: 1.25rem; align-items: stretch; }
+.flow-label, .flow-step {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.flow-label { border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 20px; padding: 0.3rem 0.6rem; white-space: nowrap; }
+.agent-flow { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.flow-node, .flow-agent {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.48);
+  padding: 1rem 1.1rem;
+}
+.flow-node { display: flex; flex-direction: column; gap: 0.2rem; text-align: center; border: 4px solid rgba(6, 182, 212, 0.72); }
+.flow-node strong, .flow-agent h3 { font-size: 0.92rem; color: var(--text-primary); margin: 0.25rem 0; }
+.flow-node > span:last-child, .flow-agent p { color: var(--text-secondary); font-size: 0.76rem; line-height: 1.5; }
+.flow-specialists { width: 100%; display: grid; grid-template-columns: 1fr; gap: 0.65rem; }
+.flow-agent { display: flex; flex-direction: column; min-width: 0; border: 4px solid rgba(239, 68, 68, 0.82); transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease; }
+.flow-agent:hover { border-color: var(--accent-rose); box-shadow: 0 0 18px rgba(239, 68, 68, 0.3); transform: translateY(-2px); }
+.flow-agent p { flex: 1; }
+.flow-output { display: block; margin-top: 0.85rem; padding-top: 0.55rem; border-top: 1px solid rgba(255, 255, 255, 0.08); color: #cbd5e1; font-size: 0.7rem; }
+.flow-connector { min-height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent-cyan); }
+.flow-connector span { font-size: 1.25rem; line-height: 1.2; }
+.flow-connector small { color: var(--text-muted); font-size: 0.66rem; }
+.agent-network-panel { min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 1.1rem; border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; background: radial-gradient(ellipse at 50% 45%, rgba(6, 182, 212, 0.08), rgba(8, 12, 20, 0.28) 68%); overflow: hidden; }
+.network-heading { display: flex; flex-direction: column; gap: 0.4rem; }
+.network-heading strong { font-size: 0.94rem; }
+.network-heading > span:last-child { max-width: 38ch; color: var(--text-secondary); font-size: 0.74rem; }
+.network-graph-wrap { width: 100%; margin: 0.4rem 0; }
+.network-graph { display: block; width: 100%; height: auto; overflow: visible; }
+.network-link { fill: none; stroke: rgba(56, 189, 248, 0.3); stroke-width: 2; stroke-dasharray: 5 7; animation: network-flow 3.5s linear infinite; }
+.network-link-report { stroke: rgba(239, 68, 68, 0.6); stroke-dasharray: 3 6; animation-duration: 2.5s; }
+.network-node text { fill: #cbd5e1; font: 11px var(--font-sans); text-anchor: middle; }
+.node-halo { fill: rgba(6, 182, 212, 0.08); stroke: rgba(6, 182, 212, 0.28); stroke-width: 1.5; animation: node-glow 2.4s ease-in-out infinite; }
+.node-core { fill: #22d3ee; filter: drop-shadow(0 0 5px rgba(34, 211, 238, 0.9)); }
+.node-source .node-core, .node-performance .node-core, .node-infrastructure .node-core, .node-connectivity .node-core { fill: #38bdf8; }
+.node-correlation .node-halo { fill: rgba(239, 68, 68, 0.1); stroke: rgba(239, 68, 68, 0.6); animation-delay: 0.5s; }
+.node-correlation .node-core, .node-report .node-core { fill: #f87171; filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.9)); }
+.node-report .node-halo { fill: rgba(239, 68, 68, 0.08); stroke: rgba(239, 68, 68, 0.4); animation-delay: 1s; }
+.network-legend { display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; color: var(--text-muted); font-size: 0.64rem; }
+.network-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.network-legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 7px currentColor; }
+.network-legend span:nth-child(2) i, .network-legend span:nth-child(3) i { background: #f87171; }
+@keyframes network-flow { to { stroke-dashoffset: -48; } }
+@keyframes node-glow { 0%, 100% { opacity: 0.55; transform: scale(0.92); transform-origin: center; } 50% { opacity: 1; transform: scale(1.08); transform-origin: center; } }
+@media (prefers-reduced-motion: reduce) {
+  .network-link, .node-halo { animation: none; }
+}
+
 /* Agent Status Cards */
 .agent-card {
   background: rgba(15, 23, 42, 0.6);
@@ -622,4 +679,16 @@ body {
   .grid-3 { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
   .diagnosis-hero { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
+
+@media (max-width: 900px) {
+  .agent-flow-layout { grid-template-columns: 1fr; }
+  .flow-specialists { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .flow-specialists { grid-template-columns: 1fr; }
+  .agent-flow-section .card-header { flex-direction: column; gap: 0.75rem; }
+  .flow-agent { padding: 0.9rem; }
+  .agent-network-panel { padding: 0.85rem; }
 }
