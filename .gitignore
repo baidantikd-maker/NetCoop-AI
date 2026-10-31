@@ -26,6 +26,7 @@ wheels/
 
 # Data runs
 data/runs/
+backend/data/runs/
 
 # IDE / OS
 .vscode/
