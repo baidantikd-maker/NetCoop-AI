@@ -20,7 +20,6 @@ const elements = {
   kpiTotalRuns: document.getElementById('kpiTotalRuns'),
   kpiDiagnosed: document.getElementById('kpiDiagnosed'),
   kpiActiveAgents: document.getElementById('kpiActiveAgents'),
-  kpiConfidenceAvg: document.getElementById('kpiConfidenceAvg'),
   recentRunsTable: document.getElementById('recentRunsTable'),
 
   // New Diagnosis
@@ -42,8 +41,6 @@ const elements = {
   // Diagnostic Report
   reportIncidentId: document.getElementById('reportIncidentId'),
   reportRootCause: document.getElementById('reportRootCause'),
-  reportConfidenceGauge: document.getElementById('reportConfidenceGauge'),
-  reportConfidenceCat: document.getElementById('reportConfidenceCat'),
   reportAffectedDevices: document.getElementById('reportAffectedDevices'),
   reportEvidenceTable: document.getElementById('reportEvidenceTable'),
   reportAlternativeCauses: document.getElementById('reportAlternativeCauses'),
@@ -356,7 +353,7 @@ function formatMessageSummary(m) {
     return `<strong style="color: #cbd5e1;">${m.payload.metric}</strong>: ${m.payload.value} ${m.payload.unit || ''} — <em>"${m.payload.interpretation}"</em>`;
   }
   if (m.payload.suspected_root_cause) {
-    return `<strong style="color: var(--accent-cyan);">Probable Cause</strong>: ${m.payload.suspected_root_cause} (Confidence: ${m.payload.confidence})`;
+    return `<strong style="color: var(--accent-cyan);">Probable Cause</strong>: ${m.payload.suspected_root_cause}`;
   }
   if (m.payload.action) {
     return `Task Action: ${m.payload.action} for target ${m.payload.device_id || 'network'}`;
@@ -380,9 +377,6 @@ function renderReportView(runResult) {
 
   elements.reportIncidentId.textContent = r.incident_id;
   elements.reportRootCause.textContent = r.suspected_root_cause;
-  elements.reportConfidenceGauge.textContent = `${Math.round(r.confidence * 100)}%`;
-  elements.reportConfidenceCat.textContent = `${r.confidence_category.toUpperCase()} RULE SCORE`;
-  elements.reportConfidenceCat.className = `badge badge-${r.confidence_category === 'high' ? 'success' : (r.confidence_category === 'medium' ? 'warning' : 'critical')}`;
 
   // Affected Devices
   elements.reportAffectedDevices.innerHTML = (r.affected_devices || []).map(d => `
@@ -434,18 +428,11 @@ async function refreshHistory() {
   elements.kpiDiagnosed.textContent = runs.filter(r => r.status === 'completed' && !r.suspected_root_cause.includes('No active fault')).length;
   elements.kpiActiveAgents.textContent = '5 / 5';
 
-  if (runs.length > 0) {
-    const avg = runs.reduce((acc, r) => acc + (r.confidence || 0), 0) / runs.length;
-    elements.kpiConfidenceAvg.textContent = `${Math.round(avg * 100)}%`;
-  } else {
-    elements.kpiConfidenceAvg.textContent = 'N/A';
-  }
-
   // Recent Runs Table
   if (elements.recentRunsTable) {
     if (runs.length === 0) {
       elements.recentRunsTable.innerHTML = `
-        <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No diagnostic runs yet. Submit telemetry to begin.</td></tr>
+        <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No diagnostic runs yet. Submit telemetry to begin.</td></tr>
       `;
     } else {
       elements.recentRunsTable.innerHTML = runs.slice(0, 8).map(r => `
@@ -453,7 +440,6 @@ async function refreshHistory() {
           <td><strong style="color: var(--accent-blue); font-family: var(--font-mono);">${r.incident_id}</strong></td>
           <td><span style="font-family: var(--font-mono);">${r.device_id}</span></td>
           <td>${r.suspected_root_cause}</td>
-          <td><span class="badge badge-info">${Math.round((r.confidence || 0) * 100)}%</span></td>
           <td>
             <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.72rem;" onclick="window.loadHistoricalRun('${r.incident_id}')">
               View

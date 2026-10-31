@@ -28,7 +28,6 @@ class IncidentStore:
                 "created_at": r.created_at,
                 "status": r.status,
                 "suspected_root_cause": r.report.suspected_root_cause if r.report else "N/A",
-                "confidence": r.report.confidence if r.report else 0.0,
                 "device_id": r.telemetry.device_id if r.telemetry else "Unknown"
             }
             for r in reversed(list(self.runs.values()))

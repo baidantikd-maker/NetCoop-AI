@@ -13,7 +13,7 @@ Target length: 4 minutes. Use only the synthetic fixtures under `backend/tests/f
 - Open **New Diagnosis** and upload `backend/tests/fixtures/link_congestion.json`.
 - Validate and start the diagnosis.
 - Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops.
-- Open the report and point out the root cause, evidence values, source agents, alternatives, and rule-based confidence score.
+- Open the report and point out the root cause, evidence values, source agents, alternatives, and recommended actions.
 
 ## 1:40–2:30 — Conflicting evidence
 

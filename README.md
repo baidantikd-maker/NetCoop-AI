@@ -113,29 +113,19 @@ curl -X POST "http://127.0.0.1:8000/api/diagnostics?incident_name=DEMO-CONGESTIO
 ```
 
 See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for a timed 3–5 minute presentation walkthrough.
-## 🔍 Understanding the Diagnostic Report
+## 🔍 How the Diagnostic Result Is Chosen
 
-### What is the Confidence %?
+The correlator compares five rule-based explanations using the supplied metrics: congestion, weak Wi-Fi, interface fault, service failure, and device resource exhaustion. A diagnosis requires relevant evidence from at least two specialist agents. Closely matched explanations are marked **inconclusive**. A normal result requires at least four healthy supplied measurements from at least two agents; otherwise the report says **insufficient evidence**. The report contains no confidence percentage.
 
-The confidence score is a fixed rule score for the leading hypothesis. It is not an LLM probability or a statistically calibrated likelihood.
+| Explanation | Main evidence considered |
+|---|---|
+| Link congestion | Link utilization, queue drops, latency, CPU load |
+| Weak Wi-Fi | Wireless signal, packet loss, jitter |
+| Interface fault | Interface errors, packet loss, degraded status |
+| Service failure | Unreachable status, very high latency, severe packet loss |
+| Resource exhaustion | CPU and memory load, queue drops, packet loss |
 
-| Confidence | Label | Meaning |
-|---|---|---|
-| ≥ 80% | 🟢 High | High heuristic score under the fixed rules |
-| 50–79% | 🟡 Medium | Partial rule support |
-| < 50% | 🔴 Low | Weak rule support or an inconclusive result |
-
-**How it is calculated:** The system scores five competing fault hypotheses with fixed weights for matching metrics. The leading score is displayed as a heuristic confidence score, not a calibrated probability. A diagnosis requires relevant evidence from at least two specialist agents. Close scores are marked inconclusive. A normal result requires at least four healthy supplied measurements from at least two agents; otherwise the report says insufficient evidence.
-
-| Hypothesis | Key Triggers | Max Score |
-|---|---|---|
-| Link Congestion | utilization ≥ 85% (+0.45), queue drops > 50 (+0.40), latency > 100ms (+0.15), CPU ≥ 80% (+0.10) | 0.94 |
-| Weak Wi-Fi | signal ≤ -80dBm (+0.55) or ≤ -70dBm (+0.30), packet loss > 5% (+0.25), jitter > 30ms (+0.15) | 0.92 |
-| Interface Fault | errors > 20 (+0.55), packet loss > 2% (+0.25), status=degraded (+0.15) | 0.90 |
-| Service Failure | status=unreachable (+0.50), latency > 1000ms (+0.25), loss > 50% (+0.20) | 0.95 |
-| Resource Exhaustion | CPU > 80% (+0.30), memory > 85% (+0.40), queue drops > 20 (+0.20), loss > 2% (+0.10) | 0.90 |
-
-> **Important:** This is a weighted rule score, not a probability that the diagnosis is correct. Verify findings on the physical device.
+Verify findings on the physical network before taking corrective action.
 
 ---
 
@@ -173,7 +163,7 @@ NetCoop AI is designed to **assist** network engineers, not replace their judgme
 - Which rule agents supplied findings
 - What data it did not have access to
 
-The confidence score is heuristic only. Validate any recommendation against the actual network before taking action.
+Validate recommendations against the actual network before taking action.
 
 ---
 

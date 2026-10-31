@@ -51,8 +51,6 @@ class ReportingAgent(BaseAgent):
 
         status = payload.get("status", "diagnosed")
         cause = payload.get("suspected_root_cause", "Undetermined root cause")
-        confidence = float(payload.get("confidence", 0.5))
-        confidence_category = payload.get("confidence_category", "medium")
         affected_devices = payload.get("affected_devices", [])
         evidence_raw = payload.get("supporting_evidence", [])
         alternative_causes = payload.get("alternative_causes", [])
@@ -95,8 +93,6 @@ class ReportingAgent(BaseAgent):
             incident_id=incident_id,
             status=status,
             suspected_root_cause=cause,
-            confidence=confidence,
-            confidence_category=confidence_category,
             affected_devices=affected_devices,
             supporting_evidence=evidence_items,
             alternative_causes=alternative_causes,

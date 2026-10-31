@@ -78,7 +78,7 @@
       </div>
 
       <!-- Live KPIs -->
-      <div class="grid-4" style="margin-bottom: 1.5rem;">
+      <div class="grid-3" style="margin-bottom: 1.5rem;">
         <div class="kpi-card">
           <div class="kpi-label">Diagnostic Runs</div>
           <div class="kpi-value" id="kpiTotalRuns">0</div>
@@ -93,11 +93,6 @@
           <div class="kpi-label">Active Agents</div>
           <div class="kpi-value" id="kpiActiveAgents" style="color: var(--accent-cyan);">5 / 5</div>
           <div class="kpi-sub">Specialist agents loaded</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Average Confidence</div>
-          <div class="kpi-value" id="kpiConfidenceAvg" style="color: var(--accent-purple);">N/A</div>
-          <div class="kpi-sub">Rule-based evidence score</div>
         </div>
       </div>
 
@@ -115,7 +110,6 @@
               <th>Incident ID</th>
               <th>Target Device</th>
               <th>Suspected Root Cause</th>
-              <th>Confidence</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -232,13 +226,6 @@
           <div class="diagnosis-meta">
             <span>Affected Target(s):</span>
             <div id="reportAffectedDevices" style="display:inline-flex; gap: 0.35rem;"></div>
-          </div>
-        </div>
-        <div class="confidence-gauge-box">
-          <div class="confidence-val" id="reportConfidenceGauge">0%</div>
-          <div class="confidence-label">Confidence</div>
-          <div style="margin-top: 0.4rem;">
-            <span class="badge badge-info" id="reportConfidenceCat">RULE SCORE</span>
           </div>
         </div>
       </div>

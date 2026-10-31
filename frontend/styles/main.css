@@ -543,32 +543,6 @@ body {
   color: var(--text-secondary);
 }
 
-.confidence-gauge-box {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 1rem 1.5rem;
-  text-align: center;
-  min-width: 140px;
-}
-
-.confidence-val {
-  font-size: 2rem;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  background: linear-gradient(135deg, #10b981, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.confidence-label {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
 /* Badges */
 .badge {
   display: inline-block;

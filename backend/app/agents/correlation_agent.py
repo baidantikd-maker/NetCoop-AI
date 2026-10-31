@@ -205,10 +205,9 @@ class CorrelationAgent(BaseAgent):
             normal_evidence = [evidence(metric) for metric in healthy_metrics]
             healthy_sources = {item.source_agent for item in normal_evidence if item.source_agent}
             if len(healthy_metrics) >= 4 and len(healthy_metrics) == len(known_metrics_present) and len(healthy_sources) >= 2:
-                coverage_score = round(min(0.95, 0.50 + 0.05 * len(healthy_metrics)), 2)
                 return self._result(
                     incident_id, "normal", "No active fault indicated by the supplied telemetry",
-                    coverage_score, normal_evidence,
+                    normal_evidence,
                     ["Intermittent issue outside the submitted sampling window", "Application-layer issue not represented in supplied metrics"],
                     healthy_sources, ["Normal classification requires at least four healthy supplied metrics from multiple agents."]
                 )
@@ -227,7 +226,6 @@ class CorrelationAgent(BaseAgent):
             )
 
         margin = best["score"] - second["score"]
-        confidence = round(best["score"], 2)
         status = "diagnosed"
         limitations = [
             "Root cause is a rule-based inference; verify against the physical network",
@@ -236,15 +234,13 @@ class CorrelationAgent(BaseAgent):
         ]
         if margin < 0.10:
             status = "inconclusive"
-            confidence = round(min(confidence, max(0.20, margin * 3)), 2)
             limitations.append("Competing fault hypotheses have similar scores; the leading cause is not reliable enough to assert.")
-        category = "high" if confidence >= 0.80 else ("medium" if confidence >= 0.50 else "low")
-        if category != "high":
-            limitations.append("Additional telemetry points are recommended to improve confidence.")
+        if status == "inconclusive":
+            limitations.append("Additional telemetry is recommended to distinguish the competing causes.")
         alternatives = [second["name"]] + best["alternatives"]
         return self._result(
-            incident_id, status, best["name"], confidence, best["evidence"],
-            alternatives, best_sources, limitations, category=category
+            incident_id, status, best["name"], best["evidence"],
+            alternatives, best_sources, limitations
         )
 
     def _insufficient(
@@ -257,10 +253,9 @@ class CorrelationAgent(BaseAgent):
     ) -> AgentMessageEnvelope:
         return self._result(
             incident_id, "insufficient_evidence",
-            "Insufficient telemetry evidence to isolate a root cause", 0.20,
+            "Insufficient telemetry evidence to isolate a root cause",
             evidence or [], [], sources,
             [reason, "Provide additional measurements from independent telemetry sources."],
-            category="insufficient",
             affected_devices=[device_id] if device_id else []
         )
 
@@ -269,23 +264,18 @@ class CorrelationAgent(BaseAgent):
         incident_id: str,
         status: str,
         cause: str,
-        confidence: float,
         evidence: List[SupportingEvidenceItem],
         alternatives: List[str],
         sources: set,
         limitations: List[str],
-        category: Optional[str] = None,
         affected_devices: Optional[List[str]] = None
     ) -> AgentMessageEnvelope:
         self.status = "completed"
-        confidence_category = category or ("high" if confidence >= 0.80 else ("medium" if confidence >= 0.50 else "low"))
         if affected_devices is None:
             affected_devices = getattr(self, "_affected_devices", [])
         payload = {
             "status": status,
             "suspected_root_cause": cause,
-            "confidence": confidence,
-            "confidence_category": confidence_category,
             "affected_devices": affected_devices,
             "supporting_evidence": [item.model_dump() for item in evidence],
             "alternative_causes": alternatives,
