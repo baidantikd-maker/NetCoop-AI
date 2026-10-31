@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-31T10:10:00Z",
+  "device_id": "LECTURE_HALL_AP_04",
+  "device_type": "access_point",
+  "status": "up",
+  "latency_ms": 115,
+  "jitter_ms": 42,
+  "packet_loss_pct": 14.8,
+  "throughput_mbps": 12,
+  "bandwidth_mbps": 300,
+  "link_utilization_pct": 28,
+  "cpu_utilization_pct": 35,
+  "memory_utilization_pct": 48,
+  "queue_drops": 4,
+  "interface_errors": 2,
+  "wireless_signal_dbm": -88,
+  "topology": {
+    "connected_to": ["CAMPUS_DIST_SW_02"]
+  }
+}

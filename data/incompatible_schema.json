@@ -1,0 +1,11 @@
+{
+  "schema_version": "99.4-experimental",
+  "missing_device_id_field": true,
+  "status": "active_ok",
+  "latency_val": "280_milliseconds_str",
+  "link_util": "94_percent",
+  "queue_drops": -50,
+  "unknown_foreign_field": {
+    "nested_noise": true
+  }
+}

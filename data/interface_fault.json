@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-31T10:15:00Z",
+  "device_id": "ENGINEERING_SW_03",
+  "device_type": "switch",
+  "status": "degraded",
+  "latency_ms": 68,
+  "jitter_ms": 22,
+  "packet_loss_pct": 8.4,
+  "throughput_mbps": 40,
+  "bandwidth_mbps": 1000,
+  "link_utilization_pct": 12,
+  "cpu_utilization_pct": 29,
+  "memory_utilization_pct": 41,
+  "queue_drops": 0,
+  "interface_errors": 348,
+  "wireless_signal_dbm": null,
+  "topology": {
+    "connected_to": ["CAMPUS_CORE_RTR_01"]
+  }
+}

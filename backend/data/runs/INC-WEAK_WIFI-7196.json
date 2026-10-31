@@ -1,0 +1,459 @@
+{
+  "incident_id": "INC-WEAK_WIFI-7196",
+  "created_at": "2026-10-31T07:23:32.891141+00:00",
+  "status": "completed",
+  "validation": {
+    "valid": true,
+    "schema_version": "1.0",
+    "errors": [],
+    "warnings": [],
+    "normalized_data": {
+      "timestamp": "2026-10-31T10:10:00Z",
+      "device_id": "LECTURE_HALL_AP_04",
+      "device_type": "access_point",
+      "status": "up",
+      "latency_ms": 115.0,
+      "jitter_ms": 42.0,
+      "packet_loss_pct": 14.8,
+      "throughput_mbps": 12.0,
+      "bandwidth_mbps": 300.0,
+      "link_utilization_pct": 28.0,
+      "cpu_utilization_pct": 35.0,
+      "memory_utilization_pct": 48.0,
+      "queue_drops": 4,
+      "interface_errors": 2,
+      "wireless_signal_dbm": -88.0,
+      "topology": {
+        "connected_to": [
+          "CAMPUS_DIST_SW_02"
+        ]
+      },
+      "raw_payload": {
+        "timestamp": "2026-10-31T10:10:00Z",
+        "device_id": "LECTURE_HALL_AP_04",
+        "device_type": "access_point",
+        "status": "up",
+        "latency_ms": 115,
+        "jitter_ms": 42,
+        "packet_loss_pct": 14.8,
+        "throughput_mbps": 12,
+        "bandwidth_mbps": 300,
+        "link_utilization_pct": 28,
+        "cpu_utilization_pct": 35,
+        "memory_utilization_pct": 48,
+        "queue_drops": 4,
+        "interface_errors": 2,
+        "wireless_signal_dbm": -88,
+        "topology": {
+          "connected_to": [
+            "CAMPUS_DIST_SW_02"
+          ]
+        }
+      }
+    }
+  },
+  "telemetry": {
+    "timestamp": "2026-10-31T10:10:00Z",
+    "device_id": "LECTURE_HALL_AP_04",
+    "device_type": "access_point",
+    "status": "up",
+    "latency_ms": 115.0,
+    "jitter_ms": 42.0,
+    "packet_loss_pct": 14.8,
+    "throughput_mbps": 12.0,
+    "bandwidth_mbps": 300.0,
+    "link_utilization_pct": 28.0,
+    "cpu_utilization_pct": 35.0,
+    "memory_utilization_pct": 48.0,
+    "queue_drops": 4,
+    "interface_errors": 2,
+    "wireless_signal_dbm": -88.0,
+    "topology": {
+      "connected_to": [
+        "CAMPUS_DIST_SW_02"
+      ]
+    },
+    "raw_payload": {
+      "timestamp": "2026-10-31T10:10:00Z",
+      "device_id": "LECTURE_HALL_AP_04",
+      "device_type": "access_point",
+      "status": "up",
+      "latency_ms": 115,
+      "jitter_ms": 42,
+      "packet_loss_pct": 14.8,
+      "throughput_mbps": 12,
+      "bandwidth_mbps": 300,
+      "link_utilization_pct": 28,
+      "cpu_utilization_pct": 35,
+      "memory_utilization_pct": 48,
+      "queue_drops": 4,
+      "interface_errors": 2,
+      "wireless_signal_dbm": -88,
+      "topology": {
+        "connected_to": [
+          "CAMPUS_DIST_SW_02"
+        ]
+      }
+    }
+  },
+  "agent_statuses": {
+    "performance_agent": {
+      "status": "completed",
+      "responsibility": "Analyzes latency, jitter, packet loss, bandwidth, and link utilization"
+    },
+    "infrastructure_agent": {
+      "status": "completed",
+      "responsibility": "Examines device status, CPU/RAM utilization, egress queue drops, interface errors, and signal"
+    },
+    "connectivity_agent": {
+      "status": "completed",
+      "responsibility": "Analyzes network topology, adjacency relationships, and blast radius"
+    },
+    "fault_correlation_agent": {
+      "status": "completed",
+      "responsibility": "Correlates multi-agent findings, weighs competing explanations, and isolates root cause"
+    },
+    "reporting_agent": {
+      "status": "completed",
+      "responsibility": "Generates practical corrective actions, limits, and compiles unified JSON report"
+    }
+  },
+  "messages": [
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-ORCH-DISPATCH",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.889860+00:00",
+      "source_agent": "orchestrator",
+      "target_agent": "specialist_agents",
+      "message_type": "agent_task",
+      "status": "success",
+      "payload": {
+        "action": "dispatch_telemetry_analysis",
+        "device_id": "LECTURE_HALL_AP_04",
+        "timestamp": "2026-10-31T10:10:00Z"
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-209E7A",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "performance_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "PERF-CF74",
+        "category": "performance",
+        "metric": "link_utilization_pct",
+        "value": 28.0,
+        "unit": "%",
+        "severity": "info",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Link utilization is normal (28.0%)."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-A068D6",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "performance_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "PERF-BEEF",
+        "category": "performance",
+        "metric": "latency_ms",
+        "value": 115.0,
+        "unit": "ms",
+        "severity": "medium",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Slightly elevated latency (115.0ms)."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-E7AEF3",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "performance_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "PERF-1887",
+        "category": "performance",
+        "metric": "packet_loss_pct",
+        "value": 14.8,
+        "unit": "%",
+        "severity": "critical",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Critical packet loss (14.8%) causing severe protocol retransmissions and session drops."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-E47A03",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "performance_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "PERF-7BB1",
+        "category": "performance",
+        "metric": "jitter_ms",
+        "value": 42.0,
+        "unit": "ms",
+        "severity": "medium",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Elevated jitter (42.0ms) indicative of buffer delay variation."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-03D17A",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "infrastructure_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "INFRA-4190",
+        "category": "infrastructure",
+        "metric": "queue_drops",
+        "value": 4,
+        "unit": "packets",
+        "severity": "medium",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Minor queue drops (4 packets dropped)."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-FDBE6B",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "infrastructure_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "INFRA-FFCE",
+        "category": "infrastructure",
+        "metric": "interface_errors",
+        "value": 2,
+        "unit": "errors",
+        "severity": "medium",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Interface reporting physical/framing errors (2 errors), suggesting faulty transceiver, bad copper termination, or EMI."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-5542FF",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "infrastructure_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "INFRA-A4C3",
+        "category": "infrastructure",
+        "metric": "wireless_signal_dbm",
+        "value": -88.0,
+        "unit": "dBm",
+        "severity": "critical",
+        "device_id": "LECTURE_HALL_AP_04",
+        "interpretation": "Extremely weak Wi-Fi RF signal strength (-88.0 dBm), prone to frame dropouts and low MCS data rates."
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-5C0001",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.890632+00:00",
+      "source_agent": "connectivity_agent",
+      "target_agent": "fault_correlation_agent",
+      "message_type": "agent_finding",
+      "status": "success",
+      "payload": {
+        "finding_id": "CONN-DA89",
+        "category": "connectivity",
+        "metric": "topology_adjacency",
+        "value": 1,
+        "unit": "links",
+        "severity": "info",
+        "device_id": "LECTURE_HALL_AP_04",
+        "affected_nodes": [
+          "LECTURE_HALL_AP_04",
+          "CAMPUS_DIST_SW_02"
+        ],
+        "interpretation": "Directly affects LECTURE_HALL_AP_04 with upstream/downstream adjacencies: CAMPUS_DIST_SW_02"
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-84840C",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.891141+00:00",
+      "source_agent": "fault_correlation_agent",
+      "target_agent": "reporting_agent",
+      "message_type": "agent_result",
+      "status": "success",
+      "payload": {
+        "status": "diagnosed",
+        "suspected_root_cause": "Weak Wi-Fi signal coverage resulting in frame drops and modulation rate collapse",
+        "confidence": 0.92,
+        "confidence_category": "high",
+        "affected_devices": [
+          "LECTURE_HALL_AP_04",
+          "CAMPUS_DIST_SW_02"
+        ],
+        "supporting_evidence": [
+          {
+            "metric": "wireless_signal_dbm",
+            "value": -88.0,
+            "unit": "dBm",
+            "interpretation": "Severe RF attenuation / low RSSI (-88.0 dBm)",
+            "source_agent": "infrastructure_agent"
+          },
+          {
+            "metric": "packet_loss_pct",
+            "value": 14.8,
+            "unit": "%",
+            "interpretation": "RF frame dropouts and retry exhaustion",
+            "source_agent": "performance_agent"
+          }
+        ],
+        "alternative_causes": [
+          "Client distance from AP / multipath interference",
+          "Co-channel RF interference on 2.4/5GHz"
+        ],
+        "limitations": [
+          "Root cause represents calibrated probabilistic inference; verify on physical switch",
+          "Cross-validated across 3 independent specialist agents"
+        ],
+        "evidence_sources": [
+          "infrastructure_agent",
+          "performance_agent"
+        ]
+      },
+      "warnings": []
+    },
+    {
+      "schema_version": "1.0",
+      "message_id": "MSG-A57C38",
+      "incident_id": "INC-WEAK_WIFI-7196",
+      "timestamp": "2026-10-31T07:23:32.891141+00:00",
+      "source_agent": "reporting_agent",
+      "target_agent": "orchestrator",
+      "message_type": "agent_result",
+      "status": "success",
+      "payload": {
+        "incident_id": "INC-WEAK_WIFI-7196",
+        "status": "diagnosed",
+        "suspected_root_cause": "Weak Wi-Fi signal coverage resulting in frame drops and modulation rate collapse",
+        "confidence": 0.92,
+        "confidence_category": "high",
+        "affected_devices": [
+          "LECTURE_HALL_AP_04",
+          "CAMPUS_DIST_SW_02"
+        ],
+        "supporting_evidence": [
+          {
+            "metric": "wireless_signal_dbm",
+            "value": -88.0,
+            "unit": "dBm",
+            "interpretation": "Severe RF attenuation / low RSSI (-88.0 dBm)",
+            "source_agent": "infrastructure_agent"
+          },
+          {
+            "metric": "packet_loss_pct",
+            "value": 14.8,
+            "unit": "%",
+            "interpretation": "RF frame dropouts and retry exhaustion",
+            "source_agent": "performance_agent"
+          }
+        ],
+        "alternative_causes": [
+          "Client distance from AP / multipath interference",
+          "Co-channel RF interference on 2.4/5GHz"
+        ],
+        "recommended_actions": [
+          "Relocate access point or adjust transmit power (EIRP) to eliminate dead zones",
+          "Perform dynamic channel selection (DFS / 5GHz) to avoid RF co-channel interference",
+          "Inspect client roaming thresholds and 802.11k/v/r configurations"
+        ],
+        "evidence_sources": [
+          "infrastructure_agent",
+          "performance_agent"
+        ],
+        "limitations": [
+          "Root cause represents calibrated probabilistic inference; verify on physical switch",
+          "Cross-validated across 3 independent specialist agents"
+        ]
+      },
+      "warnings": []
+    }
+  ],
+  "report": {
+    "incident_id": "INC-WEAK_WIFI-7196",
+    "status": "diagnosed",
+    "suspected_root_cause": "Weak Wi-Fi signal coverage resulting in frame drops and modulation rate collapse",
+    "confidence": 0.92,
+    "confidence_category": "high",
+    "affected_devices": [
+      "LECTURE_HALL_AP_04",
+      "CAMPUS_DIST_SW_02"
+    ],
+    "supporting_evidence": [
+      {
+        "metric": "wireless_signal_dbm",
+        "value": -88.0,
+        "unit": "dBm",
+        "interpretation": "Severe RF attenuation / low RSSI (-88.0 dBm)",
+        "source_agent": "infrastructure_agent"
+      },
+      {
+        "metric": "packet_loss_pct",
+        "value": 14.8,
+        "unit": "%",
+        "interpretation": "RF frame dropouts and retry exhaustion",
+        "source_agent": "performance_agent"
+      }
+    ],
+    "alternative_causes": [
+      "Client distance from AP / multipath interference",
+      "Co-channel RF interference on 2.4/5GHz"
+    ],
+    "recommended_actions": [
+      "Relocate access point or adjust transmit power (EIRP) to eliminate dead zones",
+      "Perform dynamic channel selection (DFS / 5GHz) to avoid RF co-channel interference",
+      "Inspect client roaming thresholds and 802.11k/v/r configurations"
+    ],
+    "evidence_sources": [
+      "infrastructure_agent",
+      "performance_agent"
+    ],
+    "limitations": [
+      "Root cause represents calibrated probabilistic inference; verify on physical switch",
+      "Cross-validated across 3 independent specialist agents"
+    ]
+  }
+}
