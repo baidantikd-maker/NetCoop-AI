@@ -94,7 +94,7 @@ Submit a JSON object containing a `device_id` and any telemetry fields you have.
 
 Both endpoints accept the telemetry JSON object directly. `device_id` is required; other fields are optional. The diagnostics endpoint can take an optional `incident_name` query parameter. Field aliases and nested metric containers are normalized, and the exact submitted object is retained in `raw_payload` for auditability. Supported units include ms/s/us for time, Mbps/Gbps/Kbps/bps for rates, percent signs or words for percentages, and dBm for wireless signal. Unsupported units and values outside accepted metric ranges are rejected.
 
-The production application does not load test fixtures. Synthetic examples live only in `backend/tests/fixtures/` and are used by the automated test suite and demo walkthrough.
+The application never loads demo telemetry automatically. On the **New Diagnosis** screen, users can explicitly choose one of the built-in synthetic scenarios (link congestion, weak Wi-Fi, conflicting signals, or sparse evidence) and load it into the telemetry editor. These examples are for demonstrations only and are not live campus data. Additional synthetic test fixtures live in `backend/tests/fixtures/`.
 
 ## Reproducible Tests and Demo Inputs
 
@@ -106,13 +106,21 @@ python -m unittest discover -s backend/tests -v
 
 The suite includes HTTP-level tests for health, telemetry validation, diagnosis, run/report/agent/message retrieval, history, malformed and empty requests, and unknown incident IDs. It also checks that diagnosis runs persist across store reloads and that corrupt saved-run files do not prevent valid runs from loading.
 
+### Dashboard demo workflow
+
+1. Open **New Diagnosis**.
+2. Select a built-in synthetic scenario and click **Load Scenario**, or paste/upload telemetry JSON.
+3. Click **Check Validation**. A successful validation enables **Start Multi-Agent Diagnosis**.
+4. If the telemetry is edited or replaced, validate it again before starting the diagnosis.
+5. Review the agent pipeline and diagnostic report. The synthetic scenarios are intended for repeatable demos, not as evidence about the live campus network.
+
 ### Agent execution and saved runs
 
 The five agents are locally implemented, rule-based components coordinated by the orchestrator; no LLM is configured. The performance, infrastructure, and connectivity specialists currently analyze the telemetry sequentially. The correlation agent combines their structured findings, and the reporting agent produces the final report. The system does not autonomously change network devices.
 
 Completed runs are saved as JSON files under `data/runs/` in the repository root and loaded when the application starts. Unreadable or invalid run files are skipped with a warning; valid saved runs remain available through the history and incident retrieval endpoints.
 
-The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not imported by the API or loaded into the dashboard. You can upload one explicitly in the dashboard for a repeatable demonstration, or send it to the API:
+The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not loaded automatically by the API. You can upload a fixture explicitly in the dashboard for a repeatable demonstration, or send it to the API:
 
 Generate a fresh synthetic scenario locally with the test-only generator:
 
