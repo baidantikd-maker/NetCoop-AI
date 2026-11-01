@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -8,9 +9,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.agents.performance_agent import PerformanceAgent
 from app.agents.correlation_agent import CorrelationAgent
+from app.main import app
 from app.orchestration.orchestrator import AgentOrchestrator
 from app.schemas.protocol import AgentMessageEnvelope
+from app.storage.store import IncidentStore
 from app.telemetry.validator import normalize_and_validate_telemetry
+from fastapi.testclient import TestClient
 
 
 FIXTURES = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -91,6 +95,50 @@ class TelemetryValidationTests(unittest.TestCase):
 
 
 class DiagnosisScenarioTests(unittest.TestCase):
+    def test_incident_store_persists_runs_to_disk(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = IncidentStore(data_dir=temp_dir)
+            telemetry = normalize_and_validate_telemetry({
+                "device_id": "PERSIST_TEST",
+                "status": "degraded",
+                "latency_ms": 150,
+                "packet_loss_pct": 3,
+                "queue_drops": 25,
+                "link_utilization_pct": 88
+            })
+            self.assertTrue(telemetry.valid)
+            result = AgentOrchestrator().run_diagnosis(telemetry.normalized_data, telemetry, incident_id="INC-PERSIST")
+            store.save_run(result)
+
+            reloaded = IncidentStore(data_dir=temp_dir)
+            self.assertIsNotNone(reloaded.get_run("INC-PERSIST"))
+            self.assertEqual(reloaded.list_runs()[0]["incident_id"], "INC-PERSIST")
+
+    def test_incident_store_skips_corrupt_files_and_loads_valid_runs(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = IncidentStore(data_dir=temp_dir)
+            validation = normalize_and_validate_telemetry({
+                "device_id": "PERSIST_WITH_CORRUPTION",
+                "latency_ms": 180,
+                "packet_loss_pct": 4,
+                "interface_errors": 25
+            })
+            result = AgentOrchestrator().run_diagnosis(validation.normalized_data, validation, incident_id="INC-VALID")
+            store.save_run(result)
+            runs_dir = os.path.join(temp_dir, "runs")
+            with open(os.path.join(runs_dir, "broken.json"), "w", encoding="utf-8") as target:
+                target.write("{not valid json")
+            with open(os.path.join(runs_dir, "not-an-object.json"), "w", encoding="utf-8") as target:
+                target.write("[]")
+            with open(os.path.join(runs_dir, "invalid-run.json"), "w", encoding="utf-8") as target:
+                json.dump({"incident_id": "INC-BAD", "validation": {"valid": "not-a-boolean"}}, target)
+
+            reloaded = IncidentStore(data_dir=temp_dir)
+
+            self.assertIsNotNone(reloaded.get_run("INC-VALID"))
+            self.assertIsNone(reloaded.get_run("INC-BAD"))
+            self.assertEqual([run["incident_id"] for run in reloaded.list_runs()], ["INC-VALID"])
+
     def test_api_accepts_the_submitted_telemetry_object_directly(self):
         from app.api.routes import run_diagnostics
 
@@ -218,6 +266,80 @@ class DiagnosisScenarioTests(unittest.TestCase):
         self.assertEqual(result.agent_statuses["performance_agent"]["status"], "failed")
         self.assertTrue(any(message.message_type == "agent_error" for message in result.messages))
         self.assertTrue(any("performance_agent" in limitation for limitation in result.report.limitations))
+
+
+class DiagnosticsApiTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.store = IncidentStore(data_dir=self.temp_dir.name)
+        self.store_patch = patch("app.api.routes.incident_store", self.store)
+        self.store_patch.start()
+        self.addCleanup(self.store_patch.stop)
+        self.addCleanup(self.temp_dir.cleanup)
+        self.client = TestClient(app)
+
+    def test_health_and_validation_routes(self):
+        health = self.client.get("/api/health")
+        self.assertEqual(health.status_code, 200)
+        self.assertEqual(health.json()["status"], "healthy")
+
+        valid = self.client.post("/api/telemetry/validate", json={"device_id": "API_TEST", "latency_ms": "1 s"})
+        self.assertEqual(valid.status_code, 200)
+        self.assertTrue(valid.json()["valid"])
+        self.assertEqual(valid.json()["normalized_data"]["latency_ms"], 1000)
+
+        invalid = self.client.post("/api/telemetry/validate", json={"latency_ms": 10})
+        self.assertEqual(invalid.status_code, 200)
+        self.assertFalse(invalid.json()["valid"])
+        self.assertTrue(any(error["field"] == "device_id" for error in invalid.json()["errors"]))
+
+    def test_diagnosis_is_persisted_and_available_through_api_routes(self):
+        payload = load_fixture("link_congestion")
+        response = self.client.post(
+            "/api/diagnostics",
+            params={"incident_name": "INC-API-PERSIST"},
+            json=payload
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["incident_id"], "INC-API-PERSIST")
+        self.assertEqual(response.json()["status"], "completed")
+
+        run = self.client.get("/api/diagnostics/INC-API-PERSIST")
+        report = self.client.get("/api/diagnostics/INC-API-PERSIST/report")
+        agents = self.client.get("/api/diagnostics/INC-API-PERSIST/agents")
+        messages = self.client.get("/api/diagnostics/INC-API-PERSIST/messages")
+        history = self.client.get("/api/history")
+
+        self.assertEqual(run.status_code, 200)
+        self.assertEqual(run.json()["telemetry"]["raw_payload"], payload)
+        self.assertEqual(report.status_code, 200)
+        self.assertEqual(agents.status_code, 200)
+        self.assertTrue(agents.json()["findings"])
+        self.assertEqual(messages.status_code, 200)
+        self.assertTrue(messages.json()["messages"])
+        self.assertEqual(history.status_code, 200)
+        self.assertEqual(history.json()[0]["incident_id"], "INC-API-PERSIST")
+
+        reloaded = IncidentStore(data_dir=self.temp_dir.name)
+        self.assertIsNotNone(reloaded.get_run("INC-API-PERSIST"))
+
+    def test_diagnostics_reports_empty_malformed_and_invalid_requests(self):
+        empty = self.client.post("/api/diagnostics", json={})
+        malformed = self.client.post(
+            "/api/diagnostics",
+            content="{",
+            headers={"content-type": "application/json"}
+        )
+        invalid = self.client.post("/api/diagnostics", json={"latency_ms": 10})
+
+        self.assertEqual(empty.status_code, 400)
+        self.assertEqual(malformed.status_code, 422)
+        self.assertEqual(invalid.status_code, 200)
+        self.assertEqual(invalid.json()["status"], "validation_failed")
+
+    def test_unknown_incident_returns_not_found(self):
+        self.assertEqual(self.client.get("/api/diagnostics/DOES-NOT-EXIST").status_code, 404)
+        self.assertEqual(self.client.get("/api/diagnostics/DOES-NOT-EXIST/report").status_code, 404)
 
 
 if __name__ == "__main__":
