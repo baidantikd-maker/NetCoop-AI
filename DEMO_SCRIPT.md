@@ -12,7 +12,7 @@ Target length: 4 minutes. Use only the synthetic fixtures under `backend/tests/f
 
 - Generate and upload a repeatable hardware scenario with the simulated topology flag: `python backend/tests/generate_telemetry.py hardware_failure --seed 42 --include-simulated-topology --output demo-telemetry.json`.
 - Validate and start the diagnosis.
-- Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops.
+- Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops. The specialists are dispatched sequentially by the current implementation.
 - Open the report and point out the root cause, evidence values, source agents, alternatives, and recommended actions.
 
 ## 1:40–2:30 — Conflicting evidence

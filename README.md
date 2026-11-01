@@ -104,6 +104,14 @@ Run the test suite from the repository root:
 python -m unittest discover -s backend/tests -v
 ```
 
+The suite includes HTTP-level tests for health, telemetry validation, diagnosis, run/report/agent/message retrieval, history, malformed and empty requests, and unknown incident IDs. It also checks that diagnosis runs persist across store reloads and that corrupt saved-run files do not prevent valid runs from loading.
+
+### Agent execution and saved runs
+
+The five agents are locally implemented, rule-based components coordinated by the orchestrator; no LLM is configured. The performance, infrastructure, and connectivity specialists currently analyze the telemetry sequentially. The correlation agent combines their structured findings, and the reporting agent produces the final report. The system does not autonomously change network devices.
+
+Completed runs are saved as JSON files under `data/runs/` in the repository root and loaded when the application starts. Unreadable or invalid run files are skipped with a warning; valid saved runs remain available through the history and incident retrieval endpoints.
+
 The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not imported by the API or loaded into the dashboard. You can upload one explicitly in the dashboard for a repeatable demonstration, or send it to the API:
 
 Generate a fresh synthetic scenario locally with the test-only generator:
