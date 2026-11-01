@@ -100,8 +100,10 @@ class DiagnosisScenarioTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["telemetry"]["raw_payload"], payload)
         self.assertIn("congestion", result["report"]["suspected_root_cause"].lower())
-        self.assertNotIn("confidence", result["report"])
-        self.assertNotIn("confidence", result["messages"][-2]["payload"])
+        self.assertIn("confidence", result["report"])
+        self.assertGreaterEqual(result["report"]["confidence"], 0.0)
+        self.assertLessEqual(result["report"]["confidence"], 1.0)
+        self.assertIn("confidence", result["messages"][-2]["payload"])
 
     def test_normal_requires_multiple_healthy_metrics_and_sources(self):
         _, _, result = run_fixture("normal")
@@ -155,7 +157,7 @@ class DiagnosisScenarioTests(unittest.TestCase):
     def test_sparse_input_returns_insufficient_evidence(self):
         _, _, result = run_fixture("sparse_input")
         self.assertEqual(result.report.status, "insufficient_evidence")
-        self.assertNotIn("confidence", result.report.model_dump())
+        self.assertIn("confidence", result.report.model_dump())
 
     def test_mild_or_incomplete_signals_are_not_reported_as_normal(self):
         payload = {

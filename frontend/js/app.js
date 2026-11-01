@@ -39,6 +39,7 @@ const elements = {
   // Diagnostic Report
   reportIncidentId: document.getElementById('reportIncidentId'),
   reportRootCause: document.getElementById('reportRootCause'),
+  reportConfidence: document.getElementById('reportConfidence'),
   reportAffectedDevices: document.getElementById('reportAffectedDevices'),
   reportEvidenceTable: document.getElementById('reportEvidenceTable'),
   reportAlternativeCauses: document.getElementById('reportAlternativeCauses'),
@@ -357,6 +358,8 @@ function renderReportView(runResult) {
 
   elements.reportIncidentId.textContent = r.incident_id;
   elements.reportRootCause.textContent = r.suspected_root_cause;
+  const confidencePct = Math.round((Number(r.confidence) || 0) * 100);
+  elements.reportConfidence.textContent = `${confidencePct}% (${r.confidence_category || 'insufficient'})`;
 
   // Affected Devices
   elements.reportAffectedDevices.innerHTML = (r.affected_devices || []).map(d => `

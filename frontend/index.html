@@ -90,10 +90,10 @@
       </div>
 
       <!-- Recent Incidents Table -->
-      <div class="glass-card">
+      <div class="glass-card recent-incidents-card">
         <div class="card-header">
           <div class="card-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4a017" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
             Recent Diagnostic Incidents
           </div>
         </div>
@@ -238,7 +238,7 @@
         </div>
 
         <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button class="btn btn-primary" id="btnStartDiagnosis" disabled style="padding: 0.75rem 1.5rem; font-size: 0.95rem;">
+          <button class="btn btn-emerald" id="btnStartDiagnosis" disabled style="padding: 0.75rem 1.5rem; font-size: 0.95rem;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             Start Multi-Agent Diagnosis
           </button>
@@ -296,6 +296,10 @@
         <div>
           <div class="diagnosis-label">Diagnosed Incident Report: <span id="reportIncidentId">--</span></div>
           <div class="diagnosis-cause" id="reportRootCause">Awaiting diagnostic run...</div>
+          <div class="diagnosis-meta" style="margin-top: 0.65rem;">
+            <span>Confidence:</span>
+            <strong id="reportConfidence">--</strong>
+          </div>
           <div class="diagnosis-meta">
             <span>Affected Target(s):</span>
             <div id="reportAffectedDevices" style="display:inline-flex; gap: 0.35rem;"></div>
