@@ -6,7 +6,59 @@ const state = {
   currentTab: 'overview',
   currentRun: null,
   history: [],
-  isExecuting: false
+  isExecuting: false,
+  telemetryValidated: false
+};
+
+const demoScenarios = {
+  congestion: {
+    timestamp: '2026-10-31T10:00:00Z',
+    device_id: 'TEST_SWITCH_CONGESTED',
+    device_type: 'switch',
+    status: 'up',
+    latency_ms: 280,
+    packet_loss_pct: 4,
+    link_utilization_pct: 94,
+    cpu_utilization_pct: 40,
+    memory_utilization_pct: 60,
+    queue_drops: 160,
+    interface_errors: 0
+  },
+  weak_wifi: {
+    timestamp: '2026-10-31T10:00:00Z',
+    device_id: 'TEST_AP_WEAK_SIGNAL',
+    device_type: 'access_point',
+    status: 'up',
+    latency_ms: 40,
+    jitter_ms: 42,
+    packet_loss_pct: 14.8,
+    link_utilization_pct: 40,
+    cpu_utilization_pct: 20,
+    memory_utilization_pct: 50,
+    queue_drops: 0,
+    interface_errors: 0,
+    wireless_signal_dbm: -88
+  },
+  conflicting_signals: {
+    timestamp: '2026-10-31T10:00:00Z',
+    device_id: 'TEST_AP_CONFLICTING_SIGNALS',
+    device_type: 'access_point',
+    status: 'up',
+    latency_ms: 250,
+    jitter_ms: 35,
+    packet_loss_pct: 10,
+    link_utilization_pct: 94,
+    cpu_utilization_pct: 40,
+    memory_utilization_pct: 50,
+    queue_drops: 60,
+    interface_errors: 0,
+    wireless_signal_dbm: -82
+  },
+  sparse_input: {
+    device_id: 'TEST_DEVICE_SPARSE',
+    latency_ms: 18,
+    packet_loss_pct: 0
+  }
 };
 
 // DOM Elements
@@ -28,6 +80,8 @@ const elements = {
   validationIssuesList: document.getElementById('validationIssuesList'),
   fileUploadInput: document.getElementById('fileUploadInput'),
   incidentNameInput: document.getElementById('incidentNameInput'),
+  demoScenarioSelect: document.getElementById('demoScenarioSelect'),
+  btnLoadDemoScenario: document.getElementById('btnLoadDemoScenario'),
 
   // Diagnostic Run
   runIncidentId: document.getElementById('runIncidentId'),
@@ -85,29 +139,46 @@ function switchTab(tabId) {
 }
 
 // Validate Input
-async function validateCurrentInput(dataToValidate = null) {
-  let payload = dataToValidate;
-  if (!payload) {
-    try {
-      payload = JSON.parse(elements.telemetryJsonInput.value.trim());
-    } catch (err) {
-      showValidationResult({
-        valid: false,
-        errors: [{ field: 'syntax', message: `Invalid JSON syntax: ${err.message}` }],
-        warnings: []
-      });
-      return false;
-    }
+async function validateCurrentInput() {
+  const inputSnapshot = elements.telemetryJsonInput.value.trim();
+  let payload;
+  try {
+    payload = JSON.parse(inputSnapshot);
+  } catch (err) {
+    showValidationResult({
+      valid: false,
+      errors: [{ field: 'syntax', message: `Invalid JSON syntax: ${err.message}` }],
+      warnings: []
+    });
+    return false;
   }
 
-  const result = await NetCoopAPI.validateTelemetry(payload);
-  showValidationResult(result);
-  return result.valid;
+  try {
+    const result = await NetCoopAPI.validateTelemetry(payload);
+    if (elements.telemetryJsonInput.value.trim() !== inputSnapshot) {
+      return false;
+    }
+    showValidationResult(result);
+    return result.valid;
+  } catch (err) {
+    if (elements.telemetryJsonInput.value.trim() !== inputSnapshot) {
+      return false;
+    }
+    showValidationResult({
+      valid: false,
+      errors: [{ field: 'api', message: `Validation request failed: ${err.message}` }],
+      warnings: []
+    });
+    return false;
+  }
 }
 
 function showValidationResult(result) {
   elements.validationAlertBox.style.display = 'block';
-  elements.btnStartDiagnosis.disabled = !result.valid;
+  state.telemetryValidated = Boolean(result.valid);
+  elements.btnStartDiagnosis.disabled = !state.telemetryValidated;
+  elements.btnValidateInput.classList.toggle('is-validated', state.telemetryValidated);
+  elements.btnValidateInput.textContent = state.telemetryValidated ? 'Validated' : 'Check Validation';
 
   if (result.valid) {
     elements.validationAlertBox.style.background = 'rgba(16, 185, 129, 0.1)';
@@ -141,10 +212,23 @@ function showValidationResult(result) {
   }
 }
 
+function resetTelemetryValidation() {
+  state.telemetryValidated = false;
+  elements.btnStartDiagnosis.disabled = true;
+  elements.btnValidateInput.classList.remove('is-validated');
+  elements.btnValidateInput.textContent = 'Check Validation';
+  elements.validationAlertBox.style.display = 'none';
+  elements.validationAlertBox.textContent = '';
+}
+
 // Event Listeners
 function setupEventListeners() {
   if (elements.btnValidateInput) {
     elements.btnValidateInput.addEventListener('click', () => validateCurrentInput());
+  }
+
+  if (elements.telemetryJsonInput) {
+    elements.telemetryJsonInput.addEventListener('input', resetTelemetryValidation);
   }
 
   if (elements.btnStartDiagnosis) {
@@ -158,9 +242,23 @@ function setupEventListeners() {
       const reader = new FileReader();
       reader.onload = (evt) => {
         elements.telemetryJsonInput.value = evt.target.result;
-        validateCurrentInput();
+        resetTelemetryValidation();
       };
       reader.readAsText(file);
+    });
+  }
+
+  if (elements.btnLoadDemoScenario && elements.demoScenarioSelect) {
+    elements.btnLoadDemoScenario.addEventListener('click', () => {
+      const scenario = demoScenarios[elements.demoScenarioSelect.value];
+      if (!scenario) {
+        elements.demoScenarioSelect.focus();
+        return;
+      }
+
+      elements.telemetryJsonInput.value = JSON.stringify(scenario, null, 2);
+      elements.fileUploadInput.value = '';
+      resetTelemetryValidation();
     });
   }
 

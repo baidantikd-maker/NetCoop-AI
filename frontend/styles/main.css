@@ -304,6 +304,109 @@ body {
   transform: translateY(-1px);
 }
 
+.btn:focus-visible {
+  outline: 2px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.btn:disabled {
+  background: #263244;
+  color: #94a3b8;
+  border: 1px solid #3b4758;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.telemetry-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.telemetry-input {
+  width: 100%;
+  min-height: 210px;
+  padding: 0.75rem;
+  resize: vertical;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #030712;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.telemetry-input:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.demo-scenario-controls {
+  margin-top: 1rem;
+}
+
+.demo-scenario-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.demo-scenario-select {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #030712;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.demo-scenario-select:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.demo-scenario-note {
+  margin-top: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.validation-alert {
+  display: none;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.diagnosis-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.diagnosis-actions .btn {
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.95rem;
+}
+
+.diagnosis-validate-btn.is-validated {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  box-shadow: none;
+}
+
+.diagnosis-validate-btn.is-validated:hover {
+  background: rgba(16, 185, 129, 0.2);
+  transform: none;
+}
+
 /* Grid Layouts */
 .grid-2 {
   display: grid;
@@ -744,4 +847,7 @@ body {
   .agent-flow-section .card-header { flex-direction: column; gap: 0.75rem; }
   .flow-agent { padding: 0.9rem; }
   .agent-network-panel { padding: 0.85rem; }
+  .diagnosis-actions { flex-direction: column-reverse; }
+  .diagnosis-actions .btn { width: 100%; justify-content: center; }
+  .demo-scenario-row { flex-direction: column; }
 }
