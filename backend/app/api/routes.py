@@ -1,11 +1,13 @@
+import uuid
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query
 
 from app.telemetry.validator import normalize_and_validate_telemetry
 from app.orchestration.orchestrator import AgentOrchestrator
 from app.storage.store import incident_store
 
 router = APIRouter()
+MAX_BATCH_RECORDS = 100
 
 @router.get("/health")
 def get_health():
@@ -18,15 +20,80 @@ def get_health():
     }
 
 @router.post("/telemetry/validate")
-def validate_telemetry(payload: Dict[str, Any]):
-    result = normalize_and_validate_telemetry(payload)
-    return result.model_dump()
+def validate_telemetry(payload: Any = Body(...)):
+    if not isinstance(payload, list):
+        return normalize_and_validate_telemetry(payload).model_dump()
+
+    if len(payload) > MAX_BATCH_RECORDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A telemetry batch may contain at most {MAX_BATCH_RECORDS} records"
+        )
+
+    results = []
+    for index, record in enumerate(payload):
+        validation = normalize_and_validate_telemetry(record)
+        results.append({
+            "index": index,
+            "device_id": record.get("device_id") if isinstance(record, dict) else None,
+            **validation.model_dump()
+        })
+
+    valid_records = sum(result["valid"] for result in results)
+    return {
+        "batch": True,
+        "valid": valid_records > 0,
+        "total_records": len(results),
+        "valid_records": valid_records,
+        "invalid_records": len(results) - valid_records,
+        "results": results
+    }
 
 @router.post("/diagnostics")
-def run_diagnostics(raw_data: Dict[str, Any], incident_name: Optional[str] = Query(None)):
+def run_diagnostics(raw_data: Any = Body(...), incident_name: Optional[str] = Query(None)):
     if not raw_data:
         raise HTTPException(status_code=400, detail="A non-empty telemetry JSON object must be provided")
 
+    if isinstance(raw_data, list):
+        if len(raw_data) > MAX_BATCH_RECORDS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"A telemetry batch may contain at most {MAX_BATCH_RECORDS} records"
+            )
+
+        batch_id = incident_name or f"INC-BATCH-{uuid.uuid4().hex[:8].upper()}"
+        results = []
+        for index, record in enumerate(raw_data, start=1):
+            record_incident_id = f"{batch_id}-{index:03d}"
+            result = _run_single_diagnosis(record, record_incident_id)
+            results.append({
+                "index": index - 1,
+                "device_id": record.get("device_id") if isinstance(record, dict) else None,
+                **result
+            })
+
+        successful_records = sum(result["status"] in {"completed", "partial"} for result in results)
+        invalid_records = len(results) - successful_records
+        if successful_records == 0:
+            batch_status = "validation_failed"
+        elif invalid_records or any(result["status"] == "partial" for result in results):
+            batch_status = "partial"
+        else:
+            batch_status = "completed"
+        return {
+            "batch": True,
+            "batch_id": batch_id,
+            "status": batch_status,
+            "total_records": len(results),
+            "successful_records": successful_records,
+            "invalid_records": invalid_records,
+            "results": results
+        }
+
+    return _run_single_diagnosis(raw_data, incident_name)
+
+
+def _run_single_diagnosis(raw_data: Any, incident_name: Optional[str] = None) -> Dict[str, Any]:
     # Step 1: Validate & Normalize
     val_result = normalize_and_validate_telemetry(raw_data)
     if not val_result.valid or not val_result.normalized_data:

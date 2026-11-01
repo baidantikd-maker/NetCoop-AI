@@ -10,9 +10,9 @@ Target length: 4 minutes. Use only the synthetic fixtures under `backend/tests/f
 
 ## 0:30–1:40 — End-to-end congestion diagnosis
 
-- Generate and upload a repeatable hardware scenario with the simulated topology flag: `python backend/tests/generate_telemetry.py hardware_failure --seed 42 --include-simulated-topology --output demo-telemetry.json`.
+- Load the built-in **Link congestion** demo scenario, which includes an explicitly synthetic upstream neighbor for demonstrating topology scope.
 - Validate and start the diagnosis.
-- Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops. The specialists are dispatched sequentially by the current implementation.
+- Show the performance and infrastructure findings in the message timeline, including utilization, latency, packet loss, and queue drops. Point out that the Connectivity Agent consumes their high/critical findings and records corroborating context in its topology message; the neighbor is a possible scope to inspect, not a confirmed fault. The specialists are dispatched sequentially by the current implementation.
 - Open the report and point out the root cause, evidence values, source agents, alternatives, and recommended actions.
 
 ## 1:40–2:30 — Conflicting evidence

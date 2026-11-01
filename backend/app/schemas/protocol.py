@@ -22,6 +22,18 @@ class AgentMessageEnvelope(BaseModel):
     payload: Dict[str, Any] = Field(..., description="Structured payload body")
     warnings: List[str] = Field(default_factory=list, description="Validation or semantic warnings")
 
+class CorroboratingFinding(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    finding_id: str
+    source_agent: Literal["performance_agent", "infrastructure_agent"]
+    metric: str
+    value: Any
+    unit: Optional[str] = None
+    severity: Literal["high", "critical"]
+    interpretation: str
+
+
 class FindingPayload(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -35,3 +47,4 @@ class FindingPayload(BaseModel):
     interpretation: str
     competing_factor: Optional[str] = None
     affected_nodes: Optional[List[str]] = None
+    corroborating_findings: Optional[List[CorroboratingFinding]] = None

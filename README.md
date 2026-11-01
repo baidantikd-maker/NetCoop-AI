@@ -65,7 +65,7 @@ Interactive API documentation (Swagger UI) is available at:
 
 ## 📥 What Do I Input Into This System?
 
-You feed the system a **telemetry JSON snapshot** — a single reading from a network device (switch, access point, or server). Think of it as a health report card for one device at one moment in time.
+You can submit a **single telemetry record** or a **JSON array of records** from multiple devices or timestamps. Each record describes one device reading; a batch runs the existing diagnosis independently for every valid record. Batch mode does not yet correlate devices or infer trends across timestamps.
 
 ### Telemetry Field Reference
 
@@ -88,13 +88,43 @@ You feed the system a **telemetry JSON snapshot** — a single reading from a ne
 | `wireless_signal_dbm` | dBm | Wi-Fi signal strength (APs only) | < -70 = weak; < -80 = severe |
 | `topology.connected_to` | array | Upstream/downstream devices | Used for blast radius |
 
-## User-Provided Telemetry
+### User-Provided Telemetry
 
-Submit a JSON object containing a `device_id` and any telemetry fields you have. The service validates and normalizes the supplied values, then runs deterministic rule-based agents against those values. It does not load bundled sample telemetry or generate missing measurements. `timestamp`, `device_type`, `status`, topology, and metric fields may be omitted; omitted values are not synthesized as measurements.
+Submit a JSON object containing a `device_id` and any telemetry fields you have, or submit an array of such objects. The service validates and normalizes each supplied record, then runs deterministic rule-based agents against those values. It does not load bundled sample telemetry or generate missing measurements. `timestamp`, `device_type`, `status`, topology, and metric fields may be omitted; omitted values are not synthesized as measurements.
 
-Both endpoints accept the telemetry JSON object directly. `device_id` is required; other fields are optional. The diagnostics endpoint can take an optional `incident_name` query parameter. Field aliases and nested metric containers are normalized, and the exact submitted object is retained in `raw_payload` for auditability. Supported units include ms/s/us for time, Mbps/Gbps/Kbps/bps for rates, percent signs or words for percentages, and dBm for wireless signal. Unsupported units and values outside accepted metric ranges are rejected.
+Both endpoints accept the telemetry JSON object directly; they also accept a JSON array containing up to 100 records. Each record requires `device_id`; other fields are optional. Batch validation reports each record's errors and warnings. During batch diagnosis, valid records run even if other records are invalid; invalid records appear in the response but are not persisted as diagnostic runs. Each valid record gets its own incident ID (`<incident_name>-001`, etc.) and persisted run. Field aliases and nested metric containers are normalized, and the exact submitted record is retained in `raw_payload` for auditability. Supported units include ms/s/us for time, Mbps/Gbps/Kbps/bps for rates, percent signs or words for percentages, and dBm for wireless signal. Unsupported units and values outside accepted metric ranges are rejected.
 
-The application never loads demo telemetry automatically. On the **New Diagnosis** screen, users can explicitly choose one of the built-in synthetic scenarios (link congestion, weak Wi-Fi, conflicting signals, or sparse evidence) and load it into the telemetry editor. These examples are for demonstrations only and are not live campus data. Additional synthetic test fixtures live in `backend/tests/fixtures/`.
+When no `incident_name` is supplied for a batch, the API generates a batch ID and appends a numbered suffix for each record. The response includes a result for each submitted record and a batch status (`completed`, `partial`, or `validation_failed`). The batch is not itself stored as a separate history item; successful per-record runs appear individually in dashboard history and are available through the incident retrieval endpoints.
+
+Example multi-device batch:
+
+```json
+[
+  {
+    "timestamp": "2026-10-31T10:00:00Z",
+    "device_id": "HOSTEL_CORE_SW_01",
+    "device_type": "switch",
+    "link_utilization_pct": 94,
+    "queue_drops": 160,
+    "latency_ms": 280
+  },
+  {
+    "timestamp": "2026-10-31T10:00:00Z",
+    "device_id": "HOSTEL_AP_02",
+    "device_type": "access_point",
+    "wireless_signal_dbm": -82,
+    "packet_loss_pct": 8
+  }
+]
+```
+
+Batch results are per-record diagnoses, not a network-wide root cause. Although timestamps are preserved and records can represent different times, the system does not yet aggregate time-series trends or infer shared causes across devices.
+
+### Organizer generator compatibility
+
+The telemetry schema is based on the normalized example in the project requirements document, and the validator supports documented aliases, nested metric containers, and supported units. The organizer's actual Colab generator output has not been supplied in this repository, so exact compatibility with that output has not been verified. Convert its output to the record shape above if necessary, or provide a sample to add and test a specific mapping.
+
+The application never loads demo telemetry automatically. On the **New Diagnosis** screen, users can explicitly choose one of the built-in synthetic scenarios (link congestion, weak Wi-Fi, conflicting signals, or sparse evidence) and load it into the telemetry editor. The congestion demo includes a clearly synthetic upstream neighbor to demonstrate topology scope and cross-agent context. These examples are for demonstrations only and are not live campus data. Additional synthetic test fixtures live in `backend/tests/fixtures/`.
 
 ## Reproducible Tests and Demo Inputs
 
@@ -104,21 +134,80 @@ Run the test suite from the repository root:
 python -m unittest discover -s backend/tests -v
 ```
 
-The suite includes HTTP-level tests for health, telemetry validation, diagnosis, run/report/agent/message retrieval, history, malformed and empty requests, and unknown incident IDs. It also checks that diagnosis runs persist across store reloads and that corrupt saved-run files do not prevent valid runs from loading.
+The suite includes HTTP-level tests for health, single-record and batch validation, single and mixed-validity batch diagnosis, the 100-record limit, run/report/agent/message retrieval, history, malformed and empty requests, and unknown incident IDs. It also checks specialist collaboration, persistence across store reloads, and recovery when saved-run files are corrupt.
 
 ### Dashboard demo workflow
 
 1. Open **New Diagnosis**.
-2. Select a built-in synthetic scenario and click **Load Scenario**, or paste/upload telemetry JSON.
+2. Select a built-in synthetic scenario and click **Load Scenario**, or paste/upload one telemetry record or a JSON array.
 3. Click **Check Validation**. A successful validation enables **Start Multi-Agent Diagnosis**.
 4. If the telemetry is edited or replaced, validate it again before starting the diagnosis.
-5. Review the agent pipeline and diagnostic report. The synthetic scenarios are intended for repeatable demos, not as evidence about the live campus network.
+5. Review the agent pipeline and report. For a batch, review each record's result and open its individual report. The synthetic scenarios are intended for repeatable demos, not as evidence about the live campus network.
 
 ### Agent execution and saved runs
 
-The five agents are locally implemented, rule-based components coordinated by the orchestrator; no LLM is configured. The performance, infrastructure, and connectivity specialists currently analyze the telemetry sequentially. The correlation agent combines their structured findings, and the reporting agent produces the final report. The system does not autonomously change network devices.
+The five agents are locally implemented, rule-based components coordinated by the orchestrator; no LLM is configured. The performance and infrastructure specialists run first and emit versioned findings. When topology is supplied, the orchestrator passes those findings to the Connectivity Agent, which interprets high/critical performance and infrastructure signals and records them as corroborating context in its topology finding. This helps qualify which connected devices may be relevant to inspect; it does not assert that a neighbor is faulty or change the correlator's hypothesis scores. The Fault Correlation Agent then combines the specialist findings, and the Reporting Agent produces the final report. These steps run sequentially. The system does not autonomously change network devices.
 
 Completed runs are saved as JSON files under `data/runs/` in the repository root and loaded when the application starts. Unreadable or invalid run files are skipped with a warning; valid saved runs remain available through the history and incident retrieval endpoints.
+
+### Example diagnostic report
+
+This example is the actual report shape produced by running the checked-in `link_congestion` fixture through the rule-based pipeline. The fixture is synthetic; the confidence value is the system's rule-based estimate, not a calibrated probability.
+
+```json
+{
+  "incident_id": "INC-EXAMPLE",
+  "status": "diagnosed",
+  "suspected_root_cause": "Likely link congestion causing egress queue drops and transit delay",
+  "confidence": 0.94,
+  "confidence_category": "high",
+  "affected_devices": [
+    "TEST_SWITCH_CONGESTED"
+  ],
+  "supporting_evidence": [
+    {
+      "metric": "link_utilization_pct",
+      "value": 94.0,
+      "unit": "%",
+      "interpretation": "High link utilization (94.0%) indicates severe network pipe saturation.",
+      "source_agent": "performance_agent"
+    },
+    {
+      "metric": "queue_drops",
+      "value": 160,
+      "unit": "packets",
+      "interpretation": "Heavy egress queue drops (160 packets dropped) due to buffer exhaustion.",
+      "source_agent": "infrastructure_agent"
+    },
+    {
+      "metric": "latency_ms",
+      "value": 280.0,
+      "unit": "ms",
+      "interpretation": "Elevated network latency (280.0ms) exceeding 150ms interactive threshold.",
+      "source_agent": "performance_agent"
+    }
+  ],
+  "alternative_causes": [
+    "Device resource exhaustion from high CPU or memory utilization",
+    "Upstream transit congestion",
+    "Burst micro-burst traffic on egress port"
+  ],
+  "recommended_actions": [
+    "Inspect capacity and traffic distribution on TEST_SWITCH_CONGESTED; link utilization was 94%.",
+    "Inspect egress queue depth and QoS on TEST_SWITCH_CONGESTED; 160 queue drops were reported.",
+    "Compare latency across adjacent hops; the reported value was 280 ms."
+  ],
+  "evidence_sources": [
+    "infrastructure_agent",
+    "performance_agent"
+  ],
+  "limitations": [
+    "Root cause is a rule-based inference; verify against the physical network",
+    "The system applies fixed thresholds and weighted scoring; it does not use a trained language model",
+    "Only supplied telemetry fields can be analyzed; missing signals are not inferred"
+  ]
+}
+```
 
 The test-only fixtures cover normal operation, link congestion, weak Wi-Fi, interface failure, service unavailability, conflicting signals, sparse input, and an incompatible schema. They are not loaded automatically by the API. You can upload a fixture explicitly in the dashboard for a repeatable demonstration, or send it to the API:
 
@@ -240,3 +329,29 @@ Every inter-agent message conforms to the following versioned contract:
 | `GET` | `/api/diagnostics/{incident_id}/messages` | Retrieves inter-agent message timeline |
 | `GET` | `/api/diagnostics/{incident_id}/report` | Retrieves unified JSON diagnostic report |
 | `GET` | `/api/history` | Lists previous incident runs and summaries |
+
+`POST /api/telemetry/validate` and `POST /api/diagnostics` accept either a single telemetry object or an array of up to 100 records. Single-object response formats remain unchanged. For batch diagnosis, each valid record is diagnosed and saved separately; invalid records are returned with validation details and are not saved.
+
+## Repository layout
+
+```text
+backend/
+  app/
+    agents/          Rule-based specialist, correlation, and reporting agents
+    api/             FastAPI routes
+    orchestration/   Agent execution and message coordination
+    schemas/         Telemetry, protocol, and report models
+    storage/         Persistent incident-run store
+    telemetry/       Input normalization and validation
+  tests/
+    fixtures/        Synthetic telemetry scenarios
+frontend/
+  index.html         Dashboard structure
+  js/                Browser application and API client
+data/
+  runs/              Persisted per-incident JSON runs
+DEMO_SCRIPT.md       Timed presentation walkthrough
+requirements.txt     Python dependencies
+```
+
+The repository does not currently include an organizer Colab generator sample or a demo-video URL; no compatibility or video link is claimed here.

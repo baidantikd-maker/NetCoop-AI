@@ -5,6 +5,7 @@ import { NetCoopAPI } from './api.js';
 const state = {
   currentTab: 'overview',
   currentRun: null,
+  batchResults: null,
   history: [],
   isExecuting: false,
   telemetryValidated: false
@@ -22,7 +23,8 @@ const demoScenarios = {
     cpu_utilization_pct: 40,
     memory_utilization_pct: 60,
     queue_drops: 160,
-    interface_errors: 0
+    interface_errors: 0,
+    topology: { connected_to: ['SIMULATED_UPSTREAM_ROUTER'] }
   },
   weak_wifi: {
     timestamp: '2026-10-31T10:00:00Z',
@@ -158,6 +160,10 @@ async function validateCurrentInput() {
     if (elements.telemetryJsonInput.value.trim() !== inputSnapshot) {
       return false;
     }
+    if (result.batch) {
+      showBatchValidationResult(result);
+      return result.valid;
+    }
     showValidationResult(result);
     return result.valid;
   } catch (err) {
@@ -209,6 +215,42 @@ function showValidationResult(result) {
         ${(result.errors || []).map(e => `<li><strong>${e.field}</strong>: ${e.message}</li>`).join('')}
       </ul>
     `;
+  }
+}
+
+function showBatchValidationResult(result) {
+  elements.validationAlertBox.replaceChildren();
+  elements.validationAlertBox.style.display = 'block';
+  state.telemetryValidated = Boolean(result.valid);
+  elements.btnStartDiagnosis.disabled = !state.telemetryValidated;
+  elements.btnValidateInput.classList.toggle('is-validated', state.telemetryValidated);
+  elements.btnValidateInput.textContent = state.telemetryValidated ? 'Validated' : 'Check Validation';
+  elements.validationAlertBox.style.background = result.valid
+    ? 'rgba(16, 185, 129, 0.1)'
+    : 'rgba(239, 68, 68, 0.1)';
+  elements.validationAlertBox.style.border = result.valid
+    ? '1px solid rgba(16, 185, 129, 0.3)'
+    : '1px solid rgba(239, 68, 68, 0.3)';
+
+  const summary = document.createElement('div');
+  summary.style.fontWeight = '600';
+  summary.style.color = result.valid ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+  summary.textContent = `Batch validation: ${result.valid_records}/${result.total_records} records valid`;
+  elements.validationAlertBox.appendChild(summary);
+
+  for (const record of result.results.filter(item => !item.valid)) {
+    const details = document.createElement('div');
+    details.style.cssText = 'font-size:0.78rem; color:#fca5a5; margin-top:0.35rem;';
+    const issues = record.errors.map(error => `${error.field}: ${error.message}`).join('; ');
+    details.textContent = `Record ${record.index + 1}${record.device_id ? ` (${record.device_id})` : ''}: ${issues}`;
+    elements.validationAlertBox.appendChild(details);
+  }
+
+  if (result.valid && result.invalid_records > 0) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:0.78rem; color:var(--accent-amber); margin-top:0.35rem;';
+    note.textContent = 'Only valid records will be diagnosed; invalid records will be listed in the batch result.';
+    elements.validationAlertBox.appendChild(note);
   }
 }
 
@@ -337,6 +379,14 @@ async function startDiagnosticRun() {
     });
 
     state.currentRun = result;
+    if (result.batch) {
+      state.batchResults = result.results;
+      renderBatchDiagnosisResults(result);
+      await refreshHistory();
+      return;
+    }
+    state.batchResults = null;
+    elements.btnViewFullReport.style.display = '';
 
     if (result.status === 'validation_failed') {
       elements.runStatusBadge.textContent = 'Validation Incompatibility';
@@ -375,6 +425,57 @@ async function startDiagnosticRun() {
     elements.runStatusBadge.className = 'agent-badge badge-failed';
   }
 }
+
+function renderBatchDiagnosisResults(result) {
+  elements.runIncidentId.textContent = result.batch_id;
+  elements.runStatusBadge.textContent = result.status === 'completed'
+    ? 'Batch Completed'
+    : result.status === 'partial' ? 'Batch Partial' : 'No Valid Records';
+  elements.runStatusBadge.className = `agent-badge ${result.status === 'completed' ? 'badge-completed' : 'badge-warning'}`;
+  elements.btnViewFullReport.style.display = 'none';
+  elements.agentCardsGrid.replaceChildren();
+  elements.agentCardsGrid.textContent = `${result.successful_records} of ${result.total_records} records diagnosed independently. Each record received its own five-agent run; no cross-device or time-series correlation was performed.`;
+  elements.messagesTimeline.replaceChildren();
+
+  const heading = document.createElement('p');
+  heading.style.cssText = 'color:var(--text-secondary); font-size:0.85rem; margin-bottom:0.75rem;';
+  heading.textContent = `Batch ${result.batch_id}: ${result.successful_records} diagnosed, ${result.invalid_records} invalid.`;
+  elements.messagesTimeline.appendChild(heading);
+
+  for (const record of result.results) {
+    const card = document.createElement('div');
+    card.className = 'timeline-msg';
+    const title = document.createElement('strong');
+    title.textContent = `Record ${record.index + 1}: ${record.device_id || 'Unknown device'}`;
+    const summary = document.createElement('p');
+    summary.style.cssText = 'margin:0.4rem 0; color:var(--text-secondary);';
+    const report = record.report;
+    summary.textContent = report
+      ? `${report.status}: ${report.suspected_root_cause}`
+      : (record.validation?.errors || []).map(error => `${error.field}: ${error.message}`).join('; ') || record.message || 'Record could not be diagnosed.';
+    card.append(title, summary);
+
+    if (report) {
+      const button = document.createElement('button');
+      button.className = 'btn btn-secondary';
+      button.type = 'button';
+      button.textContent = 'View individual report';
+      button.addEventListener('click', () => window.loadBatchReport(record.index));
+      card.appendChild(button);
+    }
+    elements.messagesTimeline.appendChild(card);
+  }
+}
+
+window.loadBatchReport = function(index) {
+  const record = state.batchResults?.[index];
+  if (!record?.report) return;
+  state.currentRun = record;
+  renderAgentCards(record.agent_statuses || {});
+  renderMessageTimeline(record.messages || []);
+  renderReportView(record);
+  switchTab('report');
+};
 
 // Render Agent Status Cards
 function renderAgentCards(statuses) {

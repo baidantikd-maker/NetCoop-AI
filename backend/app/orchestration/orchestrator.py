@@ -1,6 +1,7 @@
 import uuid
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
+from app.agents.base import BaseAgent
 from app.agents.performance_agent import PerformanceAgent
 from app.agents.infrastructure_agent import InfrastructureAgent
 from app.agents.connectivity_agent import ConnectivityAgent
@@ -82,7 +83,12 @@ class AgentOrchestrator:
         infra_msgs = self._run_specialist(self.infra_agent, telemetry, inc_id)
         all_messages.extend(infra_msgs)
 
-        conn_msgs = self._run_specialist(self.conn_agent, telemetry, inc_id)
+        conn_msgs = self._run_specialist(
+            self.conn_agent,
+            telemetry,
+            inc_id,
+            peer_findings=perf_msgs + infra_msgs
+        )
         all_messages.extend(conn_msgs)
 
         # 2. Fault Correlation Stage
@@ -112,8 +118,15 @@ class AgentOrchestrator:
         )
 
     @staticmethod
-    def _run_specialist(agent, telemetry: NormalizedTelemetry, incident_id: str) -> List[AgentMessageEnvelope]:
+    def _run_specialist(
+        agent: BaseAgent,
+        telemetry: NormalizedTelemetry,
+        incident_id: str,
+        peer_findings: Optional[List[AgentMessageEnvelope]] = None
+    ) -> List[AgentMessageEnvelope]:
         try:
+            if isinstance(agent, ConnectivityAgent):
+                return agent.analyze(telemetry, incident_id, peer_findings=peer_findings)
             return agent.analyze(telemetry, incident_id)
         except Exception as exc:
             agent.status = "failed"

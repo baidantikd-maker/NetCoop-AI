@@ -9,9 +9,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from app.agents.performance_agent import PerformanceAgent
 from app.agents.correlation_agent import CorrelationAgent
+from app.agents.connectivity_agent import ConnectivityAgent
 from app.main import app
 from app.orchestration.orchestrator import AgentOrchestrator
-from app.schemas.protocol import AgentMessageEnvelope
+from app.schemas.protocol import AgentMessageEnvelope, FindingPayload
 from app.storage.store import IncidentStore
 from app.telemetry.validator import normalize_and_validate_telemetry
 from fastapi.testclient import TestClient
@@ -169,6 +170,85 @@ class DiagnosisScenarioTests(unittest.TestCase):
         self.assertEqual(evidence["queue_drops"].value, 160)
         self.assertEqual(evidence["queue_drops"].source_agent, "infrastructure_agent")
 
+    def test_connectivity_interprets_peer_findings_to_qualify_topology_scope(self):
+        payload = load_fixture("link_congestion")
+        payload["topology"] = {"connected_to": ["TEST_UPSTREAM_ROUTER"]}
+        validation = normalize_and_validate_telemetry(payload)
+        result = AgentOrchestrator().run_diagnosis(validation.normalized_data, validation)
+        connectivity_message = next(
+            message for message in result.messages
+            if message.source_agent == "connectivity_agent" and message.message_type == "agent_finding"
+        )
+        finding = FindingPayload.model_validate(connectivity_message.payload)
+
+        self.assertEqual(
+            {item.source_agent for item in finding.corroborating_findings},
+            {"performance_agent", "infrastructure_agent"}
+        )
+        self.assertTrue(any("link_utilization_pct" == item.metric for item in finding.corroborating_findings))
+        self.assertTrue(any("queue_drops" == item.metric for item in finding.corroborating_findings))
+        self.assertIn("possible related scope", finding.interpretation)
+        self.assertEqual(finding.affected_nodes, ["TEST_SWITCH_CONGESTED", "TEST_UPSTREAM_ROUTER"])
+
+        # Peer context enriches topology explanation but does not change correlation scores or reports.
+        original_messages = [
+            message.model_copy(deep=True) for message in result.messages
+            if message.message_type != "agent_result"
+        ]
+        baseline_connectivity = next(
+            message for message in original_messages
+            if message.source_agent == "connectivity_agent"
+        )
+        baseline_connectivity.payload.pop("corroborating_findings", None)
+        baseline_connectivity.payload["interpretation"] = "Topology adjacency only."
+        baseline_report = CorrelationAgent().correlate(
+            result.incident_id, original_messages, validation.normalized_data.device_id
+        )
+        contextual_report = CorrelationAgent().correlate(
+            result.incident_id,
+            [message for message in result.messages if message.message_type != "agent_result"],
+            validation.normalized_data.device_id
+        )
+        self.assertEqual(contextual_report.payload, baseline_report.payload)
+
+    def test_connectivity_remains_backward_compatible_without_peer_findings(self):
+        _, validation, _ = run_fixture("normal")
+        messages = ConnectivityAgent().analyze(validation.normalized_data, "INC-NO-PEER-CONTEXT")
+
+        self.assertEqual(len(messages), 1)
+        self.assertNotIn("corroborating_findings", messages[0].payload)
+
+    def test_connectivity_reports_and_ignores_malformed_peer_findings(self):
+        validation = normalize_and_validate_telemetry({
+            "device_id": "TEST_MALFORMED_PEER",
+            "topology": {"connected_to": ["TEST_NEIGHBOR"]}
+        })
+        malformed_message = AgentMessageEnvelope(
+            message_id="MSG-MALFORMED-PEER",
+            incident_id="INC-MALFORMED-PEER",
+            source_agent="performance_agent",
+            target_agent="fault_correlation_agent",
+            message_type="agent_finding",
+            payload={"metric": "latency_ms", "category": "performance"}
+        )
+
+        messages = ConnectivityAgent().analyze(
+            validation.normalized_data,
+            "INC-MALFORMED-PEER",
+            peer_findings=[malformed_message]
+        )
+
+        self.assertEqual(len(messages), 1)
+        self.assertTrue(any("Ignored 1 malformed" in warning for warning in messages[0].warnings))
+        self.assertNotIn("corroborating_findings", messages[0].payload)
+
+    def test_connectivity_skips_topology_without_peer_findings_or_crashing(self):
+        validation = normalize_and_validate_telemetry({"device_id": "NO_TOPOLOGY"})
+        result = AgentOrchestrator().run_diagnosis(validation.normalized_data, validation)
+
+        self.assertEqual(result.agent_statuses["connectivity_agent"]["status"], "skipped")
+        self.assertFalse(any(message.source_agent == "connectivity_agent" for message in result.messages))
+
     def test_wifi_interface_and_service_scenarios(self):
         cases = [
             ("weak_wifi", "wi-fi"),
@@ -292,6 +372,59 @@ class DiagnosticsApiTests(unittest.TestCase):
         self.assertEqual(invalid.status_code, 200)
         self.assertFalse(invalid.json()["valid"])
         self.assertTrue(any(error["field"] == "device_id" for error in invalid.json()["errors"]))
+
+    def test_batch_validation_reports_each_record_and_allows_valid_subset(self):
+        response = self.client.post("/api/telemetry/validate", json=[
+            {"device_id": "BATCH_VALID_A", "latency_ms": "1 s"},
+            {"latency_ms": 10}
+        ])
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertTrue(result["batch"])
+        self.assertTrue(result["valid"])
+        self.assertEqual((result["total_records"], result["valid_records"], result["invalid_records"]), (2, 1, 1))
+        self.assertEqual(result["results"][0]["device_id"], "BATCH_VALID_A")
+        self.assertTrue(result["results"][0]["valid"])
+        self.assertFalse(result["results"][1]["valid"])
+        self.assertTrue(any(error["field"] == "device_id" for error in result["results"][1]["errors"]))
+
+    def test_batch_diagnostics_runs_and_persists_valid_records_independently(self):
+        response = self.client.post(
+            "/api/diagnostics",
+            params={"incident_name": "INC-API-BATCH"},
+            json=[
+                load_fixture("link_congestion"),
+                {"latency_ms": 10}
+            ]
+        )
+
+        self.assertEqual(response.status_code, 200)
+        batch = response.json()
+        self.assertTrue(batch["batch"])
+        self.assertEqual(batch["batch_id"], "INC-API-BATCH")
+        self.assertEqual(batch["status"], "partial")
+        self.assertEqual((batch["successful_records"], batch["invalid_records"]), (1, 1))
+        self.assertEqual(batch["results"][0]["incident_id"], "INC-API-BATCH-001")
+        self.assertEqual(batch["results"][0]["status"], "completed")
+        self.assertIn("congestion", batch["results"][0]["report"]["suspected_root_cause"].lower())
+        self.assertEqual(batch["results"][1]["status"], "validation_failed")
+        self.assertTrue(any(
+            error["field"] == "device_id"
+            for error in batch["results"][1]["validation"]["errors"]
+        ))
+        self.assertIsNotNone(self.store.get_run("INC-API-BATCH-001"))
+        self.assertIsNone(self.store.get_run("INC-API-BATCH-002"))
+
+    def test_batch_endpoints_reject_more_than_one_hundred_records(self):
+        payload = [{"device_id": f"BATCH_{index}"} for index in range(101)]
+        validation = self.client.post("/api/telemetry/validate", json=payload)
+        diagnosis = self.client.post("/api/diagnostics", json=payload)
+
+        self.assertEqual(validation.status_code, 400)
+        self.assertEqual(diagnosis.status_code, 400)
+        self.assertIn("at most 100 records", validation.json()["detail"])
+        self.assertIn("at most 100 records", diagnosis.json()["detail"])
 
     def test_diagnosis_is_persisted_and_available_through_api_routes(self):
         payload = load_fixture("link_congestion")
